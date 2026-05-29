@@ -11,6 +11,11 @@ export async function forgetMessage(userId: string, messageId: string) {
   await db.delete(messages).where(and(eq(messages.id, messageId), eq(messages.userId, userId)));
 }
 
+/** Delete a single memory directly (from the memory browser). */
+export async function deleteMemory(userId: string, memoryId: string) {
+  await db.delete(memories).where(and(eq(memories.id, memoryId), eq(memories.userId, userId)));
+}
+
 /**
  * Bulk forget by topic: semantic-match memories near a topic phrase, then delete
  * the memories AND their source messages so they don't get re-extracted.

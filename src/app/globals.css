@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Default (daytime, neutral mood) palette — overridden live on <html> by the
+   theme engine. Values are HSL components used via hsl(var(--token)). */
+:root {
+  --bg: 40 48% 96%;
+  --surface: 38 44% 92%;
+  --elevated: 36 40% 87%;
+  --ink: 25 34% 18%;
+  --muted: 30 20% 44%;
+  --amber: 34 78% 52%;
+  --gold: 45 80% 50%;
+  --brown: 25 45% 30%;
+  --cream: 40 50% 94%;
+  --accent: 142 45% 40%;
+  --border: 35 30% 82%;
+  --font-noura: "Cairo", "Segoe UI", Tahoma, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background-color: hsl(var(--bg));
+  color: hsl(var(--ink));
+  /* smooth the live theme shifts so mood changes feel gentle, not jarring */
+  transition: background-color 1.2s ease, color 1.2s ease;
+}
+
+/* Thin, warm scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
