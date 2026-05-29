@@ -71,9 +71,20 @@ export async function POST(req: Request) {
     });
   }
 
+  // Memory retrieval needs embeddings; degrade gracefully (no recall) if it fails
+  // so a turn never dies on a transient embedding error.
+  const safeRetrieve = retrieveMemories({
+    userId: ctx.userId,
+    assistantId: ctx.assistantId,
+    query: message,
+  }).catch((e) => {
+    console.error("memory retrieval failed", e);
+    return [];
+  });
+
   const [history, memories, mood] = await Promise.all([
     recentHistory(conversationId),
-    retrieveMemories({ userId: ctx.userId, assistantId: ctx.assistantId, query: message }),
+    safeRetrieve,
     readMood(ctx.assistantId),
   ]);
 
