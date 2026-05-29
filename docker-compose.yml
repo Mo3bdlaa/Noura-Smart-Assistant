@@ -1,0 +1,21 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: noura-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: noura
+      POSTGRES_PASSWORD: noura
+      POSTGRES_DB: noura
+    ports:
+      - "5432:5432"
+    volumes:
+      - noura-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noura -d noura"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  noura-pgdata:
