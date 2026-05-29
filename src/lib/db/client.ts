@@ -15,11 +15,15 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not set");
 }
 
+// Local dev needs no SSL; managed Postgres (e.g. Neon) requires it. Detect by host.
+const isLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(connectionString);
+
 const client =
   globalForDb.__nouraSql ??
   postgres(connectionString, {
     max: 10,
-    prepare: false, // friendlier to poolers if we move off a direct connection later
+    prepare: false, // works with transaction-pooled connections (pgbouncer / Neon pooler)
+    ssl: isLocal ? false : "require",
   });
 
 if (process.env.NODE_ENV !== "production") {

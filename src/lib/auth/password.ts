@@ -1,14 +1,14 @@
-import argon2 from "argon2";
+import { hash, verify } from "@node-rs/argon2";
 
-/** Hash a plaintext password with argon2id. */
+/** Hash a plaintext password. @node-rs/argon2 defaults to argon2id. */
 export function hashPassword(plain: string): Promise<string> {
-  return argon2.hash(plain, { type: argon2.argon2id });
+  return hash(plain);
 }
 
 /** Verify a plaintext password against a stored argon2id hash. */
-export async function verifyPassword(hash: string, plain: string): Promise<boolean> {
+export async function verifyPassword(hashed: string, plain: string): Promise<boolean> {
   try {
-    return await argon2.verify(hash, plain);
+    return await verify(hashed, plain);
   } catch {
     return false;
   }

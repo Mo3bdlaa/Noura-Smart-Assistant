@@ -6,8 +6,8 @@ const nextConfig = {
       bodySizeLimit: "2mb",
     },
   },
-  // argon2 is a native module; keep it external to the server bundle.
-  serverExternalPackages: ["argon2", "postgres"],
+  // Keep native/napi deps external to the server bundle so their binaries load.
+  serverExternalPackages: ["@node-rs/argon2", "postgres"],
 };
 
 export default nextConfig;

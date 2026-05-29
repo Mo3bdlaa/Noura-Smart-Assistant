@@ -19,6 +19,9 @@ import { surfaceInitiatives } from "@/lib/initiatives/surface";
 import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 
+// Allow long-running streamed replies + post-response reflection on Vercel.
+export const maxDuration = 60;
+
 const Body = z.object({
   conversationId: z.string().uuid(),
   message: z.string().trim().min(1).max(4000),
