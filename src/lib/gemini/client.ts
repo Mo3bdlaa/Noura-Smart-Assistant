@@ -1,21 +1,25 @@
 import { GoogleGenAI } from "@google/genai";
+import { getGeminiKey } from "@/lib/settings";
 
 /**
- * Single Gemini client wrapper. All calls funnel through here so we can apply a
- * lightweight concurrency gate + exponential backoff on 429/5xx, protecting the
- * free-tier rate limits.
+ * Single Gemini client wrapper. The API key is resolved from env first, otherwise
+ * from the value entered via the first-run setup UI (DB settings). All calls funnel
+ * through here so we can apply a concurrency gate + exponential backoff on 429/5xx.
  */
-const globalForGenai = globalThis as unknown as { __nouraGenai?: GoogleGenAI };
-
-export function genai(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
-  globalForGenai.__nouraGenai ??= new GoogleGenAI({ apiKey });
-  return globalForGenai.__nouraGenai;
-}
+const globalForGenai = globalThis as unknown as { __nouraGenai?: GoogleGenAI; __nouraKey?: string };
 
 export const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash";
 export const EMBED_MODEL = "text-embedding-004";
+
+async function resolveClient(): Promise<GoogleGenAI> {
+  const key = await getGeminiKey();
+  if (!key) throw new Error("GEMINI_API_KEY is not set (configure it in setup)");
+  if (globalForGenai.__nouraKey !== key || !globalForGenai.__nouraGenai) {
+    globalForGenai.__nouraGenai = new GoogleGenAI({ apiKey: key });
+    globalForGenai.__nouraKey = key;
+  }
+  return globalForGenai.__nouraGenai;
+}
 
 // --- minimal concurrency gate ---
 let active = 0;
@@ -45,10 +49,11 @@ function isRetryable(err: unknown): boolean {
 export async function withGemini<T>(fn: (ai: GoogleGenAI) => Promise<T>, retries = 3): Promise<T> {
   await acquire();
   try {
+    const ai = await resolveClient();
     let attempt = 0;
     for (;;) {
       try {
-        return await fn(genai());
+        return await fn(ai);
       } catch (err) {
         if (attempt >= retries || !isRetryable(err)) throw err;
         const delay = 2 ** attempt * 1000 + Math.random() * 400;

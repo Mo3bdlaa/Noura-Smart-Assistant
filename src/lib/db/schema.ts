@@ -285,6 +285,13 @@ export const agentMessages = pgTable("agent_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// App-level runtime settings (e.g. gemini_api_key captured via the first-run setup UI).
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Inferred types
 export type User = typeof users.$inferSelect;
 export type Assistant = typeof assistants.$inferSelect;
