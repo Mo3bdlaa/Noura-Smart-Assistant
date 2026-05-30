@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
   displayName: text("display_name"),
   timezone: text("timezone").notNull().default("Africa/Cairo"),
+  locale: text("locale", { enum: ["ar", "en"] }).notNull().default("ar"),
   isLocked: boolean("is_locked").notNull().default(false), // panic-lock
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -306,6 +307,41 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+
+/**
+ * Scheduled, proactive "secretary" tasks the assistant runs on her own:
+ *  - remind : nudge the user about something at a time (optionally recurring)
+ *  - digest : research a topic on the web + summarize (e.g. prices, news)
+ *  - nudge  : a gentle check-in
+ * A scheduler (Vercel daily cron + a GitHub Action + activity-driven) calls
+ * runDueTasks(); each fires a chat message in her voice + a push.
+ */
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assistantId: uuid("assistant_id")
+      .notNull()
+      .references(() => assistants.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["remind", "digest", "nudge"] }).notNull(),
+    title: text("title").notNull(),
+    instruction: text("instruction"), // for digest: what to research/summarize
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+    recurrence: text("recurrence", { enum: ["once", "daily", "weekly"] })
+      .notNull()
+      .default("once"),
+    active: boolean("active").notNull().default(true),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    due: index("tasks_due_idx").on(t.active, t.nextRunAt),
+  }),
+);
+export type Task = typeof tasks.$inferSelect;
 
 // Inferred types
 export type User = typeof users.$inferSelect;

@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { assistants, pushSubscriptions } from "@/lib/db/schema";
 import { drainJobs } from "@/lib/jobs/worker";
 import { generateReminderInitiatives } from "@/lib/initiatives/generate";
+import { runDueTasks } from "@/lib/tasks/run";
 
 /**
  * Portable scheduler hook (Vercel Cron / external).
@@ -14,6 +15,7 @@ import { generateReminderInitiatives } from "@/lib/initiatives/generate";
  */
 export async function GET() {
   const processed = await drainJobs(50);
+  const tasksRun = await runDueTasks();
 
   let swept = 0;
   const subscribed = await db
@@ -31,5 +33,5 @@ export async function GET() {
     swept++;
   }
 
-  return NextResponse.json({ ok: true, processed, swept });
+  return NextResponse.json({ ok: true, processed, tasksRun, swept });
 }

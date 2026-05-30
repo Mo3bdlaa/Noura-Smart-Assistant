@@ -128,6 +128,8 @@ export async function geminiGenerate(opts: {
   temperature?: number;
   json?: boolean;
   maxTokens?: number;
+  /** enable Google Search grounding (for digests/current info) */
+  search?: boolean;
 }): Promise<string> {
   const cfg = await getLlmConfig();
   const url = `${nativeBase(cfg.baseURL)}models/${cfg.chatModel}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
@@ -137,21 +139,33 @@ export async function geminiGenerate(opts: {
     maxOutputTokens: opts.maxTokens ?? 800,
     thinkingConfig: { thinkingBudget: 0 },
   };
-  if (opts.json) generationConfig.responseMimeType = "application/json";
+  // responseMimeType json can't be combined with tools; only set it without search.
+  if (opts.json && !opts.search) generationConfig.responseMimeType = "application/json";
 
-  const data = await withLlm(async () => {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: opts.system }] },
-        contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
-        safetySettings: SAFETY,
-        generationConfig,
-      }),
+  const base = {
+    systemInstruction: { parts: [{ text: opts.system }] },
+    contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+    safetySettings: SAFETY,
+    generationConfig,
+  };
+
+  const call = (withSearch: boolean) =>
+    withLlm(async () => {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(withSearch ? { ...base, tools: [{ google_search: {} }] } : base),
+      });
+      if (!r.ok) throw Object.assign(new Error(`gemini ${r.status}`), { status: r.status });
+      return r.json();
     });
-    if (!r.ok) throw Object.assign(new Error(`gemini ${r.status}`), { status: r.status });
-    return r.json();
-  });
+
+  let data;
+  try {
+    data = await call(Boolean(opts.search));
+  } catch (e) {
+    if (opts.search && (e as { status?: number })?.status === 400) data = await call(false);
+    else throw e;
+  }
   return extractText(data);
 }

@@ -33,6 +33,12 @@ export function LocaleProvider({
   const t = (ar: string, en: string) => (locale === "en" ? en : ar);
   const setLocale = (l: Locale) => {
     document.cookie = `locale=${l}; path=/; max-age=31536000; samesite=lax`;
+    // persist to the account too (so proactive messages use the right language)
+    fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locale: l }),
+    }).catch(() => {});
     router.refresh();
   };
   return <Ctx.Provider value={{ locale, t, setLocale }}>{children}</Ctx.Provider>;

@@ -1,0 +1,17 @@
+name: Anees scheduler
+
+# Free in-repo scheduler: pings the app's /api/cron/tick so the assistant can
+# run due tasks + send proactive notifications even when the app is closed.
+# Note: scheduled workflows only run from the repository's DEFAULT branch.
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every ~10 minutes (GitHub may delay on free runners)
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping cron tick
+        run: |
+          curl -fsS -m 90 "https://noura-smart-assistant.vercel.app/api/cron/tick" || true

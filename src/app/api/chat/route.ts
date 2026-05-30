@@ -19,6 +19,9 @@ import { surfaceInitiatives } from "@/lib/initiatives/surface";
 import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 import { getLocale } from "@/lib/i18n";
+import { detectTask } from "@/lib/tasks/detect";
+import { createTask } from "@/lib/tasks/store";
+import { runDueTasks } from "@/lib/tasks/run";
 
 // Allow long-running streamed replies + post-response reflection on Vercel.
 export const maxDuration = 60;
@@ -124,6 +127,21 @@ export async function POST(req: Request) {
       await drainJobs();
     } catch (e) {
       console.error("drainJobs failed", e);
+    }
+    // Detect a scheduling request in this message and create the task.
+    if (conv.type !== "incognito") {
+      try {
+        const task = await detectTask({ text: message, timezone: user.timezone });
+        if (task) await createTask(ctx, task);
+      } catch (e) {
+        console.error("task detect failed", e);
+      }
+    }
+    // Activity-driven: run anything that's due right now (no external trigger).
+    try {
+      await runDueTasks();
+    } catch (e) {
+      console.error("runDueTasks failed", e);
     }
   });
 

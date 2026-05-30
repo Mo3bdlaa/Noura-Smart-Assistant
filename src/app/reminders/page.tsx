@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CalendarHeart, Plus, Trash2 } from "lucide-react";
+import { Bell, CalendarHeart, Globe, Plus, Sparkles, Trash2 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -21,11 +21,20 @@ type Reminder = {
   firedAt: string | null;
 };
 
+type Task = {
+  id: string;
+  kind: "remind" | "digest" | "nudge";
+  title: string;
+  nextRunAt: string;
+  recurrence: "once" | "daily" | "weekly";
+};
+
 export default function RemindersPage() {
   const confirm = useConfirm();
   const toast = useToast();
   const { t, locale } = useI18n();
   const [items, setItems] = useState<Reminder[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<"reminder" | "important_date">("reminder");
   const [title, setTitle] = useState("");
@@ -34,14 +43,43 @@ export default function RemindersPage() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/reminders");
-    const data = await res.json();
-    setItems(data.reminders ?? []);
+    const [rRes, tRes] = await Promise.all([fetch("/api/reminders"), fetch("/api/tasks")]);
+    setItems((await rRes.json()).reminders ?? []);
+    setTasks((await tRes.json().catch(() => ({}))).tasks ?? []);
     setLoading(false);
   }
   useEffect(() => {
     load();
   }, []);
+
+  async function delTask(id: string) {
+    const ok = await confirm({
+      title: t("توقف المهمة دي؟", "Stop this task?"),
+      confirmText: t("وقّف", "Stop"),
+      cancelText: t("إلغاء", "Cancel"),
+      danger: true,
+    });
+    if (!ok) return;
+    await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    setTasks((x) => x.filter((r) => r.id !== id));
+  }
+
+  function fmtTask(r: Task): string {
+    const loc = locale === "en" ? "en-US" : "ar-EG";
+    const d = new Date(r.nextRunAt).toLocaleString(loc, {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const rec =
+      r.recurrence === "daily"
+        ? t("يوميًا", "daily")
+        : r.recurrence === "weekly"
+          ? t("أسبوعيًا", "weekly")
+          : "";
+    return rec ? `${d} · ${rec}` : d;
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -129,6 +167,34 @@ export default function RemindersPage() {
           </Button>
         </form>
       </Card>
+
+      {/* auto tasks (created from chat) */}
+      {tasks.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-muted mb-2 flex items-center gap-1.5">
+            <Sparkles className="size-4 text-accent" /> {t("مهام تلقائية", "Auto tasks")}
+          </h2>
+          <ul className="space-y-2">
+            {tasks.map((r) => (
+              <li
+                key={r.id}
+                className="group flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3 shadow-soft animate-fade-in"
+              >
+                <span className="grid place-items-center size-10 rounded-xl bg-accent-soft text-accent shrink-0">
+                  {r.kind === "digest" ? <Globe className="size-5" /> : <Bell className="size-5" />}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-ink truncate">{r.title}</div>
+                  <div className="text-xs text-muted">{fmtTask(r)}</div>
+                </div>
+                <IconButton size="sm" subtle onClick={() => delTask(r.id)} aria-label={t("حذف", "Delete")}>
+                  <Trash2 className="size-4" />
+                </IconButton>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* list */}
       {loading ? (

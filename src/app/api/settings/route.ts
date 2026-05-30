@@ -11,6 +11,7 @@ const Body = z.object({
   displayName: z.string().trim().min(1).max(40).optional(),
   timezone: z.string().trim().min(1).max(64).optional(),
   assistantName: z.string().trim().min(2).max(40).optional(),
+  locale: z.enum(["ar", "en"]).optional(),
 });
 
 function isValidTimezone(tz: string): boolean {
@@ -30,7 +31,7 @@ export async function PATCH(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "بيانات غير صحيحة" }, { status: 400 });
   }
-  const { displayName, timezone, assistantName } = parsed.data;
+  const { displayName, timezone, assistantName, locale } = parsed.data;
 
   if (timezone && !isValidTimezone(timezone)) {
     return NextResponse.json({ error: "منطقة زمنية غير معروفة" }, { status: 400 });
@@ -53,6 +54,7 @@ export async function PATCH(req: Request) {
   const userUpdate: Partial<typeof users.$inferInsert> = {};
   if (displayName !== undefined) userUpdate.displayName = displayName;
   if (timezone !== undefined) userUpdate.timezone = timezone;
+  if (locale !== undefined) userUpdate.locale = locale;
   if (Object.keys(userUpdate).length) {
     await db.update(users).set(userUpdate).where(eq(users.id, user.id));
   }

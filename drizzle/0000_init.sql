@@ -298,3 +298,25 @@ DO $$ BEGIN
  ALTER TABLE "push_subscriptions" ADD CONSTRAINT "push_subscriptions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade;
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;
+--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "locale" text DEFAULT 'ar' NOT NULL;
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "tasks" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"assistant_id" uuid NOT NULL,
+	"kind" text NOT NULL,
+	"title" text NOT NULL,
+	"instruction" text,
+	"next_run_at" timestamp with time zone NOT NULL,
+	"recurrence" text DEFAULT 'once' NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	"last_run_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "tasks_due_idx" ON "tasks" ("active","next_run_at");
+--> statement-breakpoint
+DO $$ BEGIN ALTER TABLE "tasks" ADD CONSTRAINT "tasks_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
+--> statement-breakpoint
+DO $$ BEGIN ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assistant_id_fk" FOREIGN KEY ("assistant_id") REFERENCES "assistants"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
