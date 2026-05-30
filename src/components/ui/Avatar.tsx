@@ -39,11 +39,16 @@ export function Avatar({
   if (photo) {
     return (
       <span
-        className={cn("relative inline-block rounded-full overflow-hidden shadow-soft", ring, sizes[size], className)}
+        className={cn(
+          "relative inline-block shrink-0 aspect-square rounded-full overflow-hidden shadow-soft",
+          ring,
+          sizes[size],
+          className,
+        )}
         aria-hidden
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo} alt="" className="size-full object-cover" />
+        <img src={photo} alt="" className="absolute inset-0 size-full object-cover" />
       </span>
     );
   }
