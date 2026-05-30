@@ -265,11 +265,16 @@ export function ChatWindow({
   }
 
   async function regenerate() {
-    if (streaming) return;
-    const lastIdx = messages.length - 1;
-    const last = messages[lastIdx];
-    if (!last || last.role !== "assistant") return;
-    setMessages((m) => m.map((x, i) => (i === lastIdx ? { ...x, content: "" } : x)));
+    if (streaming || !messages.some((m) => m.role === "user")) return;
+    // Stream into the trailing assistant reply if there is one; otherwise add a
+    // fresh assistant bubble (e.g. when the previous reply errored/empty).
+    let targetIdx = messages.length - 1;
+    if (messages[targetIdx]?.role === "assistant") {
+      setMessages((m) => m.map((x, i) => (i === targetIdx ? { ...x, content: "" } : x)));
+    } else {
+      targetIdx = messages.length;
+      setMessages((m) => [...m, { id: `draft-${Date.now()}`, role: "assistant", content: "" }]);
+    }
     setStreaming(true);
     try {
       const res = await fetch("/api/chat/regenerate", {
@@ -285,7 +290,7 @@ export function ChatWindow({
         const { value, done } = await reader.read();
         if (done) break;
         acc += decoder.decode(value, { stream: true });
-        setMessages((m) => m.map((x, i) => (i === lastIdx ? { ...x, content: acc } : x)));
+        setMessages((m) => m.map((x, i) => (i === targetIdx ? { ...x, content: acc } : x)));
       }
       if (acc.trim()) speak(acc);
     } catch {
@@ -312,6 +317,14 @@ export function ChatWindow({
   }
 
   const banner = TYPE_BANNER[conversationType];
+  // The most recent user message — that's where the regenerate button lives.
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user" && !messages[i].id.startsWith("tmp-")) {
+      lastUserIdx = i;
+      break;
+    }
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -357,7 +370,7 @@ export function ChatWindow({
                 streaming={streaming}
                 onDelete={() => deleteMessage(m.id)}
                 onReact={(e) => react(m.id, e)}
-                canRegenerate={i === messages.length - 1 && m.role === "assistant"}
+                canRegenerate={i === lastUserIdx}
                 onRegenerate={regenerate}
               />
             ))
