@@ -6,9 +6,11 @@ import { useState } from "react";
 import { AuthShell } from "@/components/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Input, Field } from "@/components/ui/Input";
+import { useI18n } from "@/components/i18n";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +28,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "في حاجة غلط");
+        setError(data.error ?? t("في حاجة غلط", "Something went wrong"));
         return;
       }
       router.push("/chat");
@@ -38,13 +40,13 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="أهلًا، اشتقتلك 🙂"
-      subtitle="ادخل نكمّل كلامنا من حيث ما وقفنا."
+      title={t("أهلًا، اشتقتلك 🙂", "Welcome back 🙂")}
+      subtitle={t("ادخل نكمّل كلامنا من حيث ما وقفنا.", "Log in and let's pick up where we left off.")}
       footer={
         <>
-          لسه ماعندكش حساب؟{" "}
+          {t("لسه ماعندكش حساب؟", "Don't have an account?")}{" "}
           <Link href="/register" className="text-accent font-semibold hover:underline">
-            اعمل واحد
+            {t("اعمل واحد", "Create one")}
           </Link>
         </>
       }
@@ -53,7 +55,7 @@ export default function LoginPage() {
         {error && (
           <div className="text-sm bg-danger-soft text-danger rounded-xl px-3 py-2.5">{error}</div>
         )}
-        <Field label="الإيميل">
+        <Field label={t("الإيميل", "Email")}>
           <Input
             type="email"
             required
@@ -63,7 +65,7 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        <Field label="الباسورد">
+        <Field label={t("الباسورد", "Password")}>
           <Input
             type="password"
             required
@@ -74,7 +76,7 @@ export default function LoginPage() {
           />
         </Field>
         <Button type="submit" block size="lg" loading={busy}>
-          دخول
+          {t("دخول", "Log in")}
         </Button>
       </form>
     </AuthShell>

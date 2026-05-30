@@ -21,6 +21,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
 import { EmptyState } from "@/components/ui/Card";
 import { useConfirm } from "@/components/ui/Confirm";
+import { useI18n } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 
 type Msg = {
@@ -90,6 +91,7 @@ export function ChatWindow({
   const router = useRouter();
   const confirm = useConfirm();
   const toast = useToast();
+  const { t } = useI18n();
   const [scen, setScen] = useState(scenario ?? "");
   const [scenOpen, setScenOpen] = useState(false);
   const [scenSaving, setScenSaving] = useState(false);
@@ -264,9 +266,10 @@ export function ChatWindow({
   async function deleteMessage(id: string) {
     if (id.startsWith("tmp-") || id.startsWith("draft-")) return;
     const ok = await confirm({
-      title: "تمسح الرسالة دي؟",
-      body: `${assistantName} هتنساها خالص.`,
-      confirmText: "امسح",
+      title: t("تمسح الرسالة دي؟", "Delete this message?"),
+      body: t(`${assistantName} هتنساها خالص.`, `${assistantName} will forget it completely.`),
+      confirmText: t("امسح", "Delete"),
+      cancelText: t("إلغاء", "Cancel"),
       danger: true,
     });
     if (!ok) return;
@@ -289,7 +292,9 @@ export function ChatWindow({
         >
           <Glasses className="size-3.5 shrink-0" />
           <span className="truncate">
-            {scen?.trim() ? `🎬 ${scen.trim()}` : "وضع تخيّلي — اضغط لكتابة سيناريو"}
+            {scen?.trim()
+              ? `🎬 ${scen.trim()}`
+              : t("وضع تخيّلي — اضغط لكتابة سيناريو", "Imaginary mode — tap to write a scenario")}
           </span>
           <Pencil className="size-3 shrink-0 opacity-70" />
         </button>
@@ -305,9 +310,9 @@ export function ChatWindow({
           {messages.length === 0 ? (
             <EmptyState
               icon={<Avatar name={assistantName} size="lg" mood={assistantMood} />}
-              title={`ابدأ كلامك مع ${assistantName}`}
+              title={t(`ابدأ كلامك مع ${assistantName}`, `Start chatting with ${assistantName}`)}
             >
-              اكتب أي حاجة في بالك 👋
+              {t("اكتب أي حاجة في بالك 👋", "Say anything on your mind 👋")}
             </EmptyState>
           ) : (
             messages.map((m) => (
@@ -395,7 +400,7 @@ export function ChatWindow({
                 }
               }}
               rows={1}
-              placeholder={`اكتب لـ ${assistantName}...`}
+              placeholder={t(`اكتب لـ ${assistantName}...`, `Message ${assistantName}...`)}
               className="flex-1 resize-none rounded-2xl bg-bg border border-border px-4 py-3 text-ink placeholder:text-faint outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme max-h-40 leading-relaxed"
             />
             <button
@@ -422,10 +427,13 @@ export function ChatWindow({
           >
             <div className="flex items-center gap-2.5 mb-1">
               <Glasses className="size-5 text-accent" />
-              <h2 className="text-lg font-bold text-ink">سيناريو المشهد</h2>
+              <h2 className="text-lg font-bold text-ink">{t("سيناريو المشهد", "Scene scenario")}</h2>
             </div>
             <p className="text-sm text-muted mb-3">
-              اكتب الدور/المشهد اللي عايز {assistantName} تمشي عليه. سيبه فاضي عشان تلغيه.
+              {t(
+                `اكتب الدور/المشهد اللي عايز ${assistantName} تمشي عليه. سيبه فاضي عشان تلغيه.`,
+                `Describe the role/scene for ${assistantName} to follow. Leave empty to clear it.`,
+              )}
             </p>
             <textarea
               value={scen}
@@ -437,10 +445,10 @@ export function ChatWindow({
             />
             <div className="flex gap-2 mt-4">
               <Button variant="ghost" block onClick={() => setScenOpen(false)}>
-                إلغاء
+                {t("إلغاء", "Cancel")}
               </Button>
               <Button block loading={scenSaving} onClick={saveScenario}>
-                حفظ
+                {t("حفظ", "Save")}
               </Button>
             </div>
           </div>

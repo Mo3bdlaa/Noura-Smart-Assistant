@@ -2,12 +2,15 @@
 
 import { ToastProvider } from "@/components/ui/Toast";
 import { ConfirmProvider } from "@/components/ui/Confirm";
+import { LocaleProvider, type Locale } from "@/components/i18n";
 
-/** App-wide client providers (toasts + confirm dialogs). */
-export function Providers({ children }: { children: React.ReactNode }) {
+/** App-wide client providers (locale + toasts + confirm dialogs). */
+export function Providers({ locale, children }: { locale: Locale; children: React.ReactNode }) {
   return (
-    <ToastProvider>
-      <ConfirmProvider>{children}</ConfirmProvider>
-    </ToastProvider>
+    <LocaleProvider locale={locale}>
+      <ToastProvider>
+        <ConfirmProvider>{children}</ConfirmProvider>
+      </ToastProvider>
+    </LocaleProvider>
   );
 }

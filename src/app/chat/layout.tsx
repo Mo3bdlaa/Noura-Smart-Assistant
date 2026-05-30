@@ -7,6 +7,7 @@ import { assistants } from "@/lib/db/schema";
 import { listConversations } from "@/lib/chat/store";
 import { readMood, type MoodSnapshot } from "@/lib/mood/state";
 import { AppShell } from "@/components/AppShell";
+import { getLocale, type Locale } from "@/lib/i18n";
 
 function moodKind(m: MoodSnapshot): "happy" | "calm" | "upset" {
   if (m.annoyance > 0.35) return "upset";
@@ -14,13 +15,15 @@ function moodKind(m: MoodSnapshot): "happy" | "calm" | "upset" {
   return "calm";
 }
 
-function moodLabel(m: MoodSnapshot): string {
-  if (m.annoyance > 0.35) return m.intensity > 0.6 ? "زعلانة منك 😔" : "متضايقة شوية";
-  if (m.energy < 0.35) return "تعبانة شوية 🥱";
-  if (m.affection > 0.7) return "مبسوطة بيك 🥰";
-  if (m.happiness > 0.65) return "رايقة ومبسوطة ☀️";
-  if (m.happiness < 0.4) return "مزاجها متعكنن شوية";
-  return "موجودة معاك 🙂";
+function moodLabel(m: MoodSnapshot, locale: Locale): string {
+  const t = (ar: string, en: string) => (locale === "en" ? en : ar);
+  if (m.annoyance > 0.35)
+    return m.intensity > 0.6 ? t("زعلانة منك 😔", "Upset with you 😔") : t("متضايقة شوية", "A bit annoyed");
+  if (m.energy < 0.35) return t("تعبانة شوية 🥱", "A little tired 🥱");
+  if (m.affection > 0.7) return t("مبسوطة بيك 🥰", "Happy with you 🥰");
+  if (m.happiness > 0.65) return t("رايقة ومبسوطة ☀️", "Cheerful & content ☀️");
+  if (m.happiness < 0.4) return t("مزاجها متعكنن شوية", "In a bit of a mood");
+  return t("موجودة معاك 🙂", "Here with you 🙂");
 }
 
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {
@@ -35,12 +38,13 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
     .limit(1);
   const conversations = await listConversations(ctx);
   const mood = await readMood(ctx.assistantId);
+  const locale = await getLocale();
 
   return (
     <AppShell
       assistantName={assistant?.name ?? "نورا"}
       mood={moodKind(mood)}
-      moodLabel={moodLabel(mood)}
+      moodLabel={moodLabel(mood, locale)}
       isAdmin={user.role === "admin"}
       conversations={conversations.map((c) => ({ id: c.id, type: c.type, title: c.title }))}
     >

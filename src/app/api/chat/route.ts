@@ -18,6 +18,7 @@ import {
 import { surfaceInitiatives } from "@/lib/initiatives/surface";
 import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
+import { getLocale } from "@/lib/i18n";
 
 // Allow long-running streamed replies + post-response reflection on Vercel.
 export const maxDuration = 60;
@@ -114,6 +115,7 @@ export async function POST(req: Request) {
     initiatives,
     conversationType: conv.type,
     scenario: conv.scenario,
+    locale: await getLocale(),
   });
 
   // Run async memory/mood reflection after the response is sent.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
+import { useI18n } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,6 +18,7 @@ const DISMISS_DAYS = 7;
  * Hidden when already installed or recently dismissed.
  */
 export function InstallPrompt() {
+  const { t } = useI18n();
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [show, setShow] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -81,13 +83,18 @@ export function InstallPrompt() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icon-192.png" alt="" className="size-11 rounded-xl shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-ink text-sm leading-tight">ثبّت أنيس على موبايلك</div>
+          <div className="font-bold text-ink text-sm leading-tight">
+            {t("ثبّت أنيس على موبايلك", "Install Anees on your phone")}
+          </div>
           {isIOS ? (
             <div className="text-[12px] text-muted leading-snug mt-0.5 flex items-center gap-1 flex-wrap">
-              اضغط <Share className="size-3.5 inline" /> «مشاركة» ثم «إضافة إلى الشاشة الرئيسية»
+              {t("اضغط", "Tap")} <Share className="size-3.5 inline" />{" "}
+              {t("«مشاركة» ثم «إضافة إلى الشاشة الرئيسية»", "Share, then Add to Home Screen")}
             </div>
           ) : (
-            <div className="text-[12px] text-muted leading-tight mt-0.5">يفتح أسرع وكإنه أبليكيشن.</div>
+            <div className="text-[12px] text-muted leading-tight mt-0.5">
+              {t("يفتح أسرع وكإنه أبليكيشن.", "Opens faster, like a real app.")}
+            </div>
           )}
         </div>
         {!isIOS && (
@@ -95,7 +102,7 @@ export function InstallPrompt() {
             onClick={install}
             className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-gold to-amber text-on-accent font-bold text-sm px-3 py-2 active:scale-95 transition-theme"
           >
-            <Download className="size-4" /> تثبيت
+            <Download className="size-4" /> {t("تثبيت", "Install")}
           </button>
         )}
         <button onClick={dismiss} aria-label="إغلاق" className="shrink-0 text-muted hover:text-ink p-1">

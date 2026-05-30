@@ -6,9 +6,11 @@ import { useState } from "react";
 import { AuthShell } from "@/components/AuthShell";
 import { Button } from "@/components/ui/Button";
 import { Input, Field } from "@/components/ui/Input";
+import { useI18n } from "@/components/i18n";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [form, setForm] = useState({ email: "", password: "", displayName: "", assistantName: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,7 +32,7 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "في حاجة غلط");
+        setError(data.error ?? t("في حاجة غلط", "Something went wrong"));
         return;
       }
       router.push("/chat");
@@ -42,13 +44,13 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="اعمل حساب جديد"
-      subtitle="اختار اسم لمساعدك الخاص بيك، وابدأ علاقتكم."
+      title={t("اعمل حساب جديد", "Create an account")}
+      subtitle={t("اختار اسم لمساعدك الخاص بيك، وابدأ علاقتكم.", "Name your own assistant and start your story.")}
       footer={
         <>
-          عندك حساب؟{" "}
+          {t("عندك حساب؟", "Already have an account?")}{" "}
           <Link href="/login" className="text-accent font-semibold hover:underline">
-            ادخل
+            {t("ادخل", "Log in")}
           </Link>
         </>
       }
@@ -57,20 +59,20 @@ export default function RegisterPage() {
         {error && (
           <div className="text-sm bg-danger-soft text-danger rounded-xl px-3 py-2.5">{error}</div>
         )}
-        <Field label="اسمك">
-          <Input required placeholder="مثلاً: محمد" value={form.displayName} onChange={set("displayName")} />
+        <Field label={t("اسمك", "Your name")}>
+          <Input required placeholder={t("مثلاً: محمد", "e.g. Omar")} value={form.displayName} onChange={set("displayName")} />
         </Field>
-        <Field label="الإيميل">
+        <Field label={t("الإيميل", "Email")}>
           <Input type="email" required autoComplete="email" placeholder="[email protected]" value={form.email} onChange={set("email")} />
         </Field>
-        <Field label="الباسورد" hint="٨ حروف على الأقل">
+        <Field label={t("الباسورد", "Password")} hint={t("٨ حروف على الأقل", "At least 8 characters")}>
           <Input type="password" required autoComplete="new-password" placeholder="••••••••" value={form.password} onChange={set("password")} />
         </Field>
-        <Field label="اسم مساعدك" hint='أي اسم يعجبك (مش "نورا" 😏)'>
-          <Input required placeholder="مثلاً: سلمى، ليلى..." value={form.assistantName} onChange={set("assistantName")} />
+        <Field label={t("اسم مساعدك", "Your assistant's name")} hint={t('أي اسم يعجبك (مش "نورا" 😏)', 'Any name you like (not "Noura" 😏)')}>
+          <Input required placeholder={t("مثلاً: سلمى، ليلى...", "e.g. Salma, Layla...")} value={form.assistantName} onChange={set("assistantName")} />
         </Field>
         <Button type="submit" block size="lg" loading={busy}>
-          يلا نبدأ
+          {t("يلا نبدأ", "Let's start")}
         </Button>
       </form>
     </AuthShell>

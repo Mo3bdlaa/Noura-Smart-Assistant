@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 
 export type Conv = { id: string; type: "main" | "side" | "incognito"; title: string | null };
@@ -41,6 +42,7 @@ export function Sidebar(props: {
   const params = useParams<{ conversationId?: string }>();
   const confirm = useConfirm();
   const toast = useToast();
+  const { t } = useI18n();
   const [convs, setConvs] = useState<Conv[]>(props.conversations);
   const [busy, setBusy] = useState(false);
   const [scenarioOpen, setScenarioOpen] = useState(false);
@@ -64,7 +66,7 @@ export function Sidebar(props: {
         setConvs((c) => [{ id: data.conversation.id, type, title: null }, ...c]);
         go(`/chat/${data.conversation.id}`);
       } else {
-        toast("مش قادرة أعمل المحادثة دلوقتي", "error");
+        toast(t("مش قادرة أعمل المحادثة دلوقتي", "Couldn't start the chat right now"), "error");
       }
     } finally {
       setBusy(false);
@@ -73,9 +75,10 @@ export function Sidebar(props: {
 
   async function remove(id: string) {
     const ok = await confirm({
-      title: "تمسح المحادثة دي؟",
-      body: "هتتشال خالص من هنا.",
-      confirmText: "امسح",
+      title: t("تمسح المحادثة دي؟", "Delete this chat?"),
+      body: t("هتتشال خالص من هنا.", "It will be removed for good."),
+      confirmText: t("امسح", "Delete"),
+      cancelText: t("إلغاء", "Cancel"),
       danger: true,
     });
     if (!ok) return;
@@ -113,7 +116,7 @@ export function Sidebar(props: {
           onClick={() => create("side")}
           className="flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl bg-accent-soft text-ink px-3 py-2.5 hover:brightness-95 transition-theme disabled:opacity-50"
         >
-          <MessageCirclePlus className="size-4" /> جانبية
+          <MessageCirclePlus className="size-4" /> {t("جانبية", "Side")}
         </button>
         <button
           disabled={busy}
@@ -123,7 +126,7 @@ export function Sidebar(props: {
           }}
           className="flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl bg-elevated text-ink px-3 py-2.5 hover:brightness-95 transition-theme disabled:opacity-50"
         >
-          <Glasses className="size-4" /> تخيّلي
+          <Glasses className="size-4" /> {t("تخيّلي", "Imaginary")}
         </button>
       </div>
 
@@ -137,7 +140,7 @@ export function Sidebar(props: {
           />
         )}
         {others.length > 0 && (
-          <div className="px-3 pt-3 pb-1 text-[11px] font-semibold text-faint">المحادثات</div>
+          <div className="px-3 pt-3 pb-1 text-[11px] font-semibold text-faint">{t("المحادثات", "Chats")}</div>
         )}
         {others.map((c) => (
           <ConvItem
@@ -152,13 +155,13 @@ export function Sidebar(props: {
 
       {/* footer */}
       <div className="p-2 pb-safe border-t border-border space-y-0.5">
-        <FooterLink icon={<Brain className="size-[18px]" />} label="الذاكرة" onClick={() => go("/memories")} />
-        <FooterLink icon={<Bell className="size-[18px]" />} label="التذكيرات" onClick={() => go("/reminders")} />
-        <FooterLink icon={<Settings className="size-[18px]" />} label="الإعدادات" onClick={() => go("/settings")} />
+        <FooterLink icon={<Brain className="size-[18px]" />} label={t("الذاكرة", "Memory")} onClick={() => go("/memories")} />
+        <FooterLink icon={<Bell className="size-[18px]" />} label={t("التذكيرات", "Reminders")} onClick={() => go("/reminders")} />
+        <FooterLink icon={<Settings className="size-[18px]" />} label={t("الإعدادات", "Settings")} onClick={() => go("/settings")} />
         {props.isAdmin && (
-          <FooterLink icon={<Crown className="size-[18px]" />} label="لوحة الأدمن" onClick={() => go("/admin")} />
+          <FooterLink icon={<Crown className="size-[18px]" />} label={t("لوحة الأدمن", "Admin")} onClick={() => go("/admin")} />
         )}
-        <FooterLink icon={<LogOut className="size-[18px]" />} label="خروج" muted onClick={logout} />
+        <FooterLink icon={<LogOut className="size-[18px]" />} label={t("خروج", "Log out")} muted onClick={logout} />
       </div>
 
       {/* incognito scenario modal */}
@@ -173,23 +176,28 @@ export function Sidebar(props: {
           >
             <div className="flex items-center gap-2.5 mb-1">
               <Glasses className="size-5 text-accent" />
-              <h2 className="text-lg font-bold text-ink">وضع تخيّلي جديد</h2>
+              <h2 className="text-lg font-bold text-ink">{t("وضع تخيّلي جديد", "New imaginary mode")}</h2>
             </div>
             <p className="text-sm text-muted mb-3">
-              اكتب سيناريو/مشهد (اختياري) ونورا هتعيش الدور. اللي هنا مش هيتسجّل في ذاكرتها، ومش
-              هيتمسح غير لما إنت تمسحه.
+              {t(
+                "اكتب سيناريو/مشهد (اختياري) وهي هتعيش الدور. اللي هنا مش هيتسجّل في ذاكرتها، ومش هيتمسح غير لما إنت تمسحه.",
+                "Write an optional scenario/scene and she'll play the role. Nothing here is saved to her memory, and it's only removed when you delete it.",
+              )}
             </p>
             <textarea
               value={scenario}
               onChange={(e) => setScenario(e.target.value)}
               rows={4}
               autoFocus
-              placeholder="مثلاً: إحنا في مقهى، وإنتي صاحبتي القديمة اللي مقابلتهاش من سنين..."
+              placeholder={t(
+                "مثلاً: إحنا في مقهى، وإنتي صاحبتي القديمة اللي مقابلتهاش من سنين...",
+                "e.g. We're at a café, and you're an old friend I haven't seen in years...",
+              )}
               className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink placeholder:text-faint outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme resize-none"
             />
             <div className="flex gap-2 mt-4">
               <Button variant="ghost" block onClick={() => setScenarioOpen(false)}>
-                إلغاء
+                {t("إلغاء", "Cancel")}
               </Button>
               <Button
                 block
@@ -199,7 +207,7 @@ export function Sidebar(props: {
                   create("incognito", scenario.trim());
                 }}
               >
-                ابدأ المشهد
+                {t("ابدأ المشهد", "Start scene")}
               </Button>
             </div>
           </div>
@@ -240,7 +248,14 @@ function ConvItem(props: {
   onOpen: (id: string) => void;
   onDelete?: () => void;
 }) {
-  const { Icon, label } = TYPE_META[props.conv.type];
+  const { t } = useI18n();
+  const { Icon } = TYPE_META[props.conv.type];
+  const label =
+    props.conv.type === "main"
+      ? t("الرئيسية", "Main")
+      : props.conv.type === "side"
+        ? t("محادثة جانبية", "Side chat")
+        : t("تخيّلي", "Imaginary");
   return (
     <div
       className={cn(

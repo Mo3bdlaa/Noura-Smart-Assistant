@@ -23,6 +23,8 @@ export type AssembleInput = {
   conversationType: ConversationType;
   /** Optional incognito roleplay/scenario setup written by the user. */
   scenario?: string | null;
+  /** UI locale — when "en", she replies in English (same personality). */
+  locale?: "ar" | "en";
 };
 
 const MEMORY_LABEL: Record<RetrievedMemory["type"], string> = {
@@ -100,6 +102,15 @@ export function assembleSystem(input: AssembleInput): string {
       "- استخدمي لهجته وكلماته، وإيموجي بطبيعية ومش كتير.",
     ].join("\n"),
   );
+
+  // Language override: reply in English (same warm personality) when the UI is English.
+  if (input.locale === "en") {
+    blocks.push(
+      "LANGUAGE: Reply in natural, warm English with the exact same personality, " +
+        "feelings, mood and intimacy. Never break character or mention being an AI. " +
+        "If the user writes in Arabic, match their language.",
+    );
+  }
 
   return blocks.join("\n\n");
 }
