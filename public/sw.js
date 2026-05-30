@@ -29,7 +29,7 @@ self.addEventListener("push", (e) => {
   } catch {
     data = { body: e.data ? e.data.text() : "" };
   }
-  const title = data.title || "نورا";
+  const title = data.title || "أنيس";
   e.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

@@ -127,7 +127,7 @@ export default function RemindersPage() {
         </ul>
       ) : items.length === 0 ? (
         <EmptyState icon={<Bell className="size-6" />} title="مفيش تذكيرات لسه">
-          ضيف تذكير أو مناسبة، و{`نورا`} هتفكّرك بيها في وقتها.
+          ضيف تذكير أو مناسبة، ومساعدك هيفكّرك بيها في وقتها.
         </EmptyState>
       ) : (
         <ul className="space-y-2">

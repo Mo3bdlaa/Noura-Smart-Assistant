@@ -245,7 +245,7 @@ export function SettingsForm({
           <SectionTitle icon={<Smartphone className="size-4" />} title="ثبّتها على موبايلك" />
           <p className="text-sm text-muted mt-2 leading-relaxed">
             من المتصفح على الموبايل: اختار <b>مشاركة</b> → <b>إضافة إلى الشاشة الرئيسية</b>، وهتلاقي
-            نورا كأبليكيشن كامل بأيقونتها.
+            أنيس كأبليكيشن كامل بأيقونته.
           </p>
         </Card>
 

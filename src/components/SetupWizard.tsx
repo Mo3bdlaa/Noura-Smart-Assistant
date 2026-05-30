@@ -80,10 +80,10 @@ export function SetupWizard() {
 
           {step === 0 && (
             <div className="text-center space-y-3 py-2">
-              <Avatar name="نورا" size="xl" mood="happy" className="mx-auto" />
-              <h1 className="text-2xl font-extrabold text-ink">يلا نجهّز نورا</h1>
+              <Avatar size="xl" mood="happy" className="mx-auto" />
+              <h1 className="text-2xl font-extrabold text-ink">يلا نجهّز أنيس</h1>
               <p className="text-muted text-sm leading-relaxed max-w-xs mx-auto">
-                كام خطوة بسيطة ونبقى جاهزين — حسابك، مفتاح Gemini، واسم مساعدتك.
+                كام خطوة بسيطة ونبقى جاهزين — حسابك، مفتاح Gemini، واسم مساعدك.
               </p>
             </div>
           )}

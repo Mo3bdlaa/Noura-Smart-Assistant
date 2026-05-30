@@ -16,7 +16,8 @@ export function AuthShell({
     <div className="min-h-dvh grid place-items-center p-4 bg-aura">
       <div className="w-full max-w-sm animate-slide-up">
         <div className="flex flex-col items-center text-center mb-6">
-          <Avatar name="نورا" size="xl" mood="happy" className="mb-3" />
+          <Avatar size="xl" mood="happy" className="mb-3" />
+          <div className="text-xs font-bold tracking-[0.3em] text-amber mb-2">أنيس · ANEES</div>
           <h1 className="text-2xl font-extrabold text-ink">{title}</h1>
           {subtitle && <p className="text-sm text-muted mt-1.5 max-w-xs">{subtitle}</p>}
         </div>

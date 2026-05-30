@@ -18,11 +18,11 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "نورا — مساعدتك اللي بتفتكر وبتحس",
-  description: "مساعدة ذكية ليها شخصية ومزاج وذاكرة، بتتكلم معاك بالمصري.",
+  title: "أنيس — رفيقك اللي بيفتكر وبيحس",
+  description: "أنيس: رفيق ذكي ليه شخصية ومزاج وذاكرة، بيتكلم معاك بطبيعتك.",
   manifest: "/manifest.webmanifest",
-  applicationName: "نورا",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "نورا" },
+  applicationName: "أنيس",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "أنيس" },
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
