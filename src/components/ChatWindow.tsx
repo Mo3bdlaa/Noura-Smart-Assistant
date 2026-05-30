@@ -444,14 +444,15 @@ function Bubble({
     <div
       className={cn(
         "group flex items-end gap-2 max-w-[88%] sm:max-w-[78%] animate-slide-up",
-        isUser ? "self-end" : "self-start",
+        // RTL: user on the right (self-start), assistant on the left (self-end).
+        isUser ? "self-start flex-row" : "self-end flex-row-reverse",
       )}
     >
       {!isUser && <Avatar name={assistantName} size="sm" mood={assistantMood} className="mb-0.5" />}
 
-      <div className={cn("space-y-1.5 min-w-0", isUser && "flex flex-col items-end")}>
+      <div className="space-y-1.5 min-w-0">
         {msg.images?.length ? (
-          <div className="flex gap-1.5 flex-wrap justify-end">
+          <div className="flex gap-1.5 flex-wrap">
             {msg.images.map((src, i) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -472,8 +473,8 @@ function Bubble({
               className={cn(
                 "whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 leading-relaxed text-[15px]",
                 isUser
-                  ? "bg-gradient-to-br from-gold to-amber text-on-accent rounded-tl-md shadow-soft"
-                  : "bg-surface border border-border text-ink rounded-tr-md shadow-soft",
+                  ? "bg-gradient-to-br from-gold to-amber text-on-accent rounded-tr-md shadow-soft"
+                  : "bg-surface border border-border text-ink rounded-tl-md shadow-soft",
               )}
             >
               {p}
@@ -491,7 +492,7 @@ function Bubble({
 
 function TypingDots() {
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-tr-md px-4 py-3.5 shadow-soft">
+    <div className="bg-surface border border-border rounded-2xl rounded-tl-md px-4 py-3.5 shadow-soft">
       <div className="flex gap-1.5">
         {[0, 1, 2].map((i) => (
           <span
