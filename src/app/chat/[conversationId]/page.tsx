@@ -44,12 +44,16 @@ export default async function ConversationPage({
       assistantMood={moodKind(mood)}
       initialMessages={msgs
         .filter((m) => m.role !== "system")
-        .map((m) => ({
-          id: m.id,
-          role: m.role as "user" | "assistant",
-          content: m.content,
-          reaction: (m.meta as { reaction?: string | null } | null)?.reaction ?? null,
-        }))}
+        .map((m) => {
+          const meta = (m.meta as { reaction?: string | null; images?: string[] } | null) ?? null;
+          return {
+            id: m.id,
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            reaction: meta?.reaction ?? null,
+            images: meta?.images,
+          };
+        })}
     />
   );
 }

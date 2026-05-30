@@ -59,11 +59,13 @@ export async function POST(req: Request) {
   const transcriptText = message || "📷 صورة";
 
   // Persist the user's message (transcript exists even for incognito; only memory/mood are skipped).
+  // Attached images are stored (downscaled data URLs) so they survive a reload.
   const userMessageId = await saveMessage({
     conversationId,
     userId: ctx.userId,
     role: "user",
     content: transcriptText,
+    meta: images?.length ? { images } : undefined,
   });
 
   const [assistant] = await db
