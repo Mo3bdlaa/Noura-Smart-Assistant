@@ -11,14 +11,22 @@ import type { TimeOfDay } from "@/lib/time/awareness";
  * See DESIGN_SYSTEM.md for the token contract.
  */
 export type ThemeVars = Record<string, string>;
+export type ThemePref = "auto" | "light" | "dark";
 
 const isDarkTime = (t: TimeOfDay) => t === "night" || t === "lateNight";
+
+/** Resolve whether to render dark, from the user's preference + time of day. */
+export function resolveDark(pref: ThemePref, timeOfDay: TimeOfDay): boolean {
+  if (pref === "dark") return true;
+  if (pref === "light") return false;
+  return isDarkTime(timeOfDay);
+}
+
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const hsl = (h: number, s: number, l: number) =>
   `${Math.round(h)} ${Math.round(clamp(s, 0, 100))}% ${Math.round(clamp(l, 0, 100))}%`;
 
-export function computeTheme(mood: MoodSnapshot, timeOfDay: TimeOfDay): ThemeVars {
-  const dark = isDarkTime(timeOfDay);
+export function computeTheme(mood: MoodSnapshot, timeOfDay: TimeOfDay, dark = isDarkTime(timeOfDay)): ThemeVars {
 
   // Warmth/saturation modulation from mood (happy + affectionate = warmer).
   const warmth =

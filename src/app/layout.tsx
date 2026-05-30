@@ -5,7 +5,8 @@ import "./globals.css";
 import { currentUser } from "@/lib/auth/guard";
 import { tenantForUser } from "@/lib/db/tenant";
 import { readMood } from "@/lib/mood/state";
-import { computeTheme, themeColor, type ThemeVars } from "@/lib/theme/compute";
+import { computeTheme, resolveDark, themeColor, type ThemeVars } from "@/lib/theme/compute";
+import { getThemePref } from "@/lib/theme/pref";
 import { timeContext } from "@/lib/time/awareness";
 import { getLocale, dirFor } from "@/lib/i18n";
 import { Providers } from "@/components/Providers";
@@ -52,18 +53,22 @@ const DEFAULT_MOOD = {
   safetyOverride: false,
 };
 
-/** Compute the live theme from the current user's mood + local time (or defaults). */
+/** Compute the live theme from the current user's mood + local time + dark-mode pref. */
 async function themeVars(): Promise<ThemeVars> {
+  const pref = await getThemePref();
   try {
     const user = await currentUser();
     if (!user) {
-      return computeTheme(DEFAULT_MOOD, timeContext("Africa/Cairo").timeOfDay);
+      const tod = timeContext("Africa/Cairo").timeOfDay;
+      return computeTheme(DEFAULT_MOOD, tod, resolveDark(pref, tod));
     }
     const ctx = await tenantForUser(user.id, user.role);
     const mood = await readMood(ctx.assistantId);
-    return computeTheme(mood, timeContext(user.timezone).timeOfDay);
+    const tod = timeContext(user.timezone).timeOfDay;
+    return computeTheme(mood, tod, resolveDark(pref, tod));
   } catch {
-    return computeTheme(DEFAULT_MOOD, timeContext("Africa/Cairo").timeOfDay);
+    const tod = timeContext("Africa/Cairo").timeOfDay;
+    return computeTheme(DEFAULT_MOOD, tod, resolveDark(pref, tod));
   }
 }
 

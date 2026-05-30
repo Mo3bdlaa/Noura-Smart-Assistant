@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Cpu, Languages, LogOut, Lock, Settings, Smartphone, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Cpu, Languages, LogOut, Lock, Moon, Palette, Settings, Smartphone, Sun, SunMoon, User } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input, Field } from "@/components/ui/Input";
@@ -38,6 +38,17 @@ export function SettingsForm({
   const toast = useToast();
   const confirm = useConfirm();
   const { locale, setLocale, t } = useI18n();
+
+  const [theme, setThemeState] = useState<"auto" | "light" | "dark">("auto");
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|; )theme=(\w+)/);
+    setThemeState(m?.[1] === "light" || m?.[1] === "dark" ? (m[1] as "light" | "dark") : "auto");
+  }, []);
+  function setTheme(p: "auto" | "light" | "dark") {
+    document.cookie = `theme=${p}; path=/; max-age=31536000; samesite=lax`;
+    setThemeState(p);
+    router.refresh();
+  }
 
   const [profile, setProfile] = useState(initial);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -150,6 +161,35 @@ export function SettingsForm({
               </button>
             ))}
           </div>
+        </Card>
+
+        {/* appearance */}
+        <Card className="p-5">
+          <SectionTitle icon={<Palette className="size-4" />} title={t("المظهر", "Appearance")} />
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            {([
+              ["auto", <SunMoon key="a" className="size-4" />, t("تلقائي", "Auto")],
+              ["light", <Sun key="l" className="size-4" />, t("فاتح", "Light")],
+              ["dark", <Moon key="d" className="size-4" />, t("داكن", "Dark")],
+            ] as const).map(([val, icon, label]) => (
+              <button
+                key={val}
+                onClick={() => setTheme(val)}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-xl px-3 py-3 text-sm font-medium transition-theme border",
+                  theme === val
+                    ? "bg-accent-soft text-accent border-accent/30"
+                    : "bg-elevated text-muted border-transparent hover:text-ink",
+                )}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-faint mt-2">
+            {t("«تلقائي» بيتبع وقت اليوم (داكن بالليل).", "“Auto” follows the time of day (dark at night).")}
+          </p>
         </Card>
 
         {/* profile */}
