@@ -1,7 +1,7 @@
 import { and, cosineDistance, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { memories, type Memory } from "@/lib/db/schema";
-import { embed } from "@/lib/gemini/embeddings";
+import { embed } from "@/lib/llm/embeddings";
 
 export type RetrievedMemory = Pick<Memory, "id" | "type" | "content" | "importance"> & {
   score: number;

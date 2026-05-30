@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useToast } from "@/components/ui/Toast";
@@ -41,19 +42,21 @@ export function Sidebar(props: {
   const toast = useToast();
   const [convs, setConvs] = useState<Conv[]>(props.conversations);
   const [busy, setBusy] = useState(false);
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [scenario, setScenario] = useState("");
 
   const go = (href: string) => {
     props.onNavigate?.();
     router.push(href);
   };
 
-  async function create(type: "side" | "incognito") {
+  async function create(type: "side" | "incognito", scenarioText?: string) {
     setBusy(true);
     try {
       const res = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ type, scenario: scenarioText || undefined }),
       });
       const data = await res.json();
       if (data.conversation) {
@@ -113,7 +116,10 @@ export function Sidebar(props: {
         </button>
         <button
           disabled={busy}
-          onClick={() => create("incognito")}
+          onClick={() => {
+            setScenario("");
+            setScenarioOpen(true);
+          }}
           className="flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl bg-elevated text-ink px-3 py-2.5 hover:brightness-95 transition-theme disabled:opacity-50"
         >
           <Glasses className="size-4" /> تخيّلي
@@ -152,6 +158,51 @@ export function Sidebar(props: {
         )}
         <FooterLink icon={<LogOut className="size-[18px]" />} label="خروج" muted onClick={logout} />
       </div>
+
+      {/* incognito scenario modal */}
+      {scenarioOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-overlay/55 animate-fade-in"
+          onClick={() => setScenarioOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 shadow-raised animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2.5 mb-1">
+              <Glasses className="size-5 text-accent" />
+              <h2 className="text-lg font-bold text-ink">وضع تخيّلي جديد</h2>
+            </div>
+            <p className="text-sm text-muted mb-3">
+              اكتب سيناريو/مشهد (اختياري) ونورا هتعيش الدور. اللي هنا مش هيتسجّل في ذاكرتها، ومش
+              هيتمسح غير لما إنت تمسحه.
+            </p>
+            <textarea
+              value={scenario}
+              onChange={(e) => setScenario(e.target.value)}
+              rows={4}
+              autoFocus
+              placeholder="مثلاً: إحنا في مقهى، وإنتي صاحبتي القديمة اللي مقابلتهاش من سنين..."
+              className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink placeholder:text-faint outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme resize-none"
+            />
+            <div className="flex gap-2 mt-4">
+              <Button variant="ghost" block onClick={() => setScenarioOpen(false)}>
+                إلغاء
+              </Button>
+              <Button
+                block
+                loading={busy}
+                onClick={() => {
+                  setScenarioOpen(false);
+                  create("incognito", scenario.trim());
+                }}
+              >
+                ابدأ المشهد
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

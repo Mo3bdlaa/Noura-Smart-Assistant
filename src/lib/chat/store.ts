@@ -2,7 +2,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { conversations, messages, type ConversationType } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant";
-import type { ChatTurn } from "@/lib/gemini/chat";
+import type { ChatTurn } from "@/lib/llm/chat";
 
 export async function getConversation(ctx: TenantContext, id: string) {
   const [row] = await db
@@ -33,13 +33,27 @@ export async function getMainConversation(ctx: TenantContext) {
 export async function createConversation(
   ctx: TenantContext,
   type: Exclude<ConversationType, "main">,
-  title?: string,
+  opts?: { title?: string; scenario?: string },
 ) {
   const [row] = await db
     .insert(conversations)
-    .values({ userId: ctx.userId, assistantId: ctx.assistantId, type, title: title ?? null })
+    .values({
+      userId: ctx.userId,
+      assistantId: ctx.assistantId,
+      type,
+      title: opts?.title ?? null,
+      scenario: opts?.scenario ?? null,
+    })
     .returning();
   return row!;
+}
+
+/** Update an incognito conversation's scenario (roleplay setup). */
+export async function updateScenario(ctx: TenantContext, id: string, scenario: string | null) {
+  await db
+    .update(conversations)
+    .set({ scenario })
+    .where(and(eq(conversations.id, id), eq(conversations.userId, ctx.userId)));
 }
 
 export async function deleteConversation(ctx: TenantContext, id: string) {

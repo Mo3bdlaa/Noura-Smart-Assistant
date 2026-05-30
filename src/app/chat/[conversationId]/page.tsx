@@ -39,6 +39,7 @@ export default async function ConversationPage({
     <ChatWindow
       conversationId={conv.id}
       conversationType={conv.type}
+      scenario={conv.scenario}
       assistantName={assistant?.name ?? "نورا"}
       assistantMood={moodKind(mood)}
       initialMessages={msgs

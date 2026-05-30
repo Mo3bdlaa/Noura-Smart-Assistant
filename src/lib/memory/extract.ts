@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { assistants, memories, type CanonEntry, type MemoryType } from "@/lib/db/schema";
-import { generateJson } from "@/lib/gemini/chat";
-import { embedBatch } from "@/lib/gemini/embeddings";
+import { generateJson } from "@/lib/llm/chat";
+import { embedBatch } from "@/lib/llm/embeddings";
 import { applyMoodDelta } from "@/lib/mood/update";
 
 const MEMORY_TYPES: [MemoryType, ...MemoryType[]] = [

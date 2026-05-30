@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS "conversations" (
 	"assistant_id" uuid NOT NULL,
 	"type" text NOT NULL,
 	"title" text,
+	"scenario" text,
 	"is_archived" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );

@@ -6,7 +6,7 @@ import { db } from "@/lib/db/client";
 import { assistants, type CanonEntry } from "@/lib/db/schema";
 import { conversationPolicy } from "@/lib/db/tenant";
 import { AuthError, requireTenant } from "@/lib/auth/guard";
-import { streamChat } from "@/lib/gemini/chat";
+import { streamChat } from "@/lib/llm/chat";
 import { assembleSystem } from "@/lib/persona/assemble";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 import { readMood } from "@/lib/mood/state";
@@ -22,10 +22,16 @@ import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 // Allow long-running streamed replies + post-response reflection on Vercel.
 export const maxDuration = 60;
 
-const Body = z.object({
-  conversationId: z.string().uuid(),
-  message: z.string().trim().min(1).max(4000),
-});
+const Body = z
+  .object({
+    conversationId: z.string().uuid(),
+    message: z.string().trim().max(4000).default(""),
+    // base64 data URLs (client downscales before sending). Multimodal turn.
+    images: z.array(z.string().startsWith("data:image/")).max(4).optional(),
+  })
+  .refine((b) => b.message.length > 0 || (b.images?.length ?? 0) > 0, {
+    message: "اكتب رسالة أو ابعت صورة",
+  });
 
 export async function POST(req: Request) {
   let user, ctx;
@@ -42,18 +48,22 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "رسالة غير صالحة" }, { status: 400 });
   }
-  const { conversationId, message } = parsed.data;
+  const { conversationId, message, images } = parsed.data;
 
   const conv = await getConversation(ctx, conversationId);
   if (!conv) return NextResponse.json({ error: "المحادثة مش موجودة" }, { status: 404 });
   const policy = conversationPolicy(conv.type);
+
+  // Transcript stores text only; images are sent to the model for this turn but
+  // not persisted (keeps the DB light). Mark image-only turns so they read well.
+  const transcriptText = message || "📷 صورة";
 
   // Persist the user's message (transcript exists even for incognito; only memory/mood are skipped).
   const userMessageId = await saveMessage({
     conversationId,
     userId: ctx.userId,
     role: "user",
-    content: message,
+    content: transcriptText,
   });
 
   const [assistant] = await db
@@ -101,6 +111,7 @@ export async function POST(req: Request) {
     userDisplayName: user.displayName,
     initiatives,
     conversationType: conv.type,
+    scenario: conv.scenario,
   });
 
   // Run async memory/mood reflection after the response is sent.
@@ -117,7 +128,7 @@ export async function POST(req: Request) {
     async start(controller) {
       let full = "";
       try {
-        for await (const delta of streamChat({ system, history })) {
+        for await (const delta of streamChat({ system, history, images })) {
           full += delta;
           controller.enqueue(encoder.encode(delta));
         }

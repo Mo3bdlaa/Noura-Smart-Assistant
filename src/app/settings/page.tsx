@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/auth/guard";
 import { tenantForUser } from "@/lib/db/tenant";
 import { db } from "@/lib/db/client";
 import { assistants } from "@/lib/db/schema";
+import { getLlmConfig } from "@/lib/llm/config";
 import { SettingsForm } from "@/components/SettingsForm";
 
 export default async function SettingsPage() {
@@ -16,14 +17,20 @@ export default async function SettingsPage() {
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
 
+  const isAdmin = user.role === "admin";
+  const llm = isAdmin ? await getLlmConfig() : null;
+
   return (
     <SettingsForm
-      isAdmin={user.role === "admin"}
+      isAdmin={isAdmin}
       initial={{
         displayName: user.displayName ?? "",
         timezone: user.timezone,
         assistantName: assistant?.name ?? "نورا",
       }}
+      provider={
+        llm ? { baseUrl: llm.baseURL, chatModel: llm.chatModel, embedModel: llm.embedModel } : null
+      }
     />
   );
 }

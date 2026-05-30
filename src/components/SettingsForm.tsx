@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LogOut, Lock, Settings, Smartphone, User } from "lucide-react";
+import { Cpu, LogOut, Lock, Settings, Smartphone, User } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input, Field } from "@/components/ui/Input";
@@ -25,9 +25,11 @@ const TIMEZONES = [
 export function SettingsForm({
   isAdmin,
   initial,
+  provider,
 }: {
   isAdmin: boolean;
   initial: { displayName: string; timezone: string; assistantName: string };
+  provider?: { baseUrl: string; chatModel: string; embedModel: string } | null;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -37,6 +39,34 @@ export function SettingsForm({
   const [savingProfile, setSavingProfile] = useState(false);
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
   const [savingPw, setSavingPw] = useState(false);
+  const [prov, setProv] = useState({
+    baseUrl: provider?.baseUrl ?? "",
+    apiKey: "",
+    chatModel: provider?.chatModel ?? "",
+    embedModel: provider?.embedModel ?? "",
+  });
+  const [savingProv, setSavingProv] = useState(false);
+
+  async function saveProvider(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingProv(true);
+    try {
+      const res = await fetch("/api/settings/provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prov),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error ?? "مش قادر أحفظ", "error");
+        return;
+      }
+      toast("إعدادات المزوّد اتحفظت ✅", "success");
+      setProv((p) => ({ ...p, apiKey: "" }));
+    } finally {
+      setSavingProv(false);
+    }
+  }
 
   const tzOptions = Array.from(new Set([initial.timezone, ...TIMEZONES]));
 
@@ -156,6 +186,55 @@ export function SettingsForm({
             </Button>
           </form>
         </Card>
+
+        {/* LLM provider (admin only) */}
+        {isAdmin && (
+          <Card className="p-5">
+            <SectionTitle icon={<Cpu className="size-4" />} title="مزوّد الذكاء (Provider)" />
+            <p className="text-sm text-muted mt-2 leading-relaxed">
+              أي مزوّد متوافق مع OpenAI (Gemini الافتراضي، أو OpenAI / Groq / OpenRouter / Ollama
+              محلي...). سيب المفتاح فاضي عشان تبقّي على الحالي.
+            </p>
+            <form onSubmit={saveProvider} className="space-y-4 mt-4">
+              <Field label="Base URL">
+                <Input
+                  dir="ltr"
+                  placeholder="https://..."
+                  value={prov.baseUrl}
+                  onChange={(e) => setProv((p) => ({ ...p, baseUrl: e.target.value }))}
+                />
+              </Field>
+              <Field label="API Key" hint="مخزّن مشفّر؛ سيبه فاضي عشان متغيّروش">
+                <Input
+                  dir="ltr"
+                  type="password"
+                  placeholder="••••••••"
+                  value={prov.apiKey}
+                  onChange={(e) => setProv((p) => ({ ...p, apiKey: e.target.value }))}
+                />
+              </Field>
+              <Field label="موديل الشات">
+                <Input
+                  dir="ltr"
+                  placeholder="gemini-2.5-flash"
+                  value={prov.chatModel}
+                  onChange={(e) => setProv((p) => ({ ...p, chatModel: e.target.value }))}
+                />
+              </Field>
+              <Field label="موديل الـ Embeddings" hint="لازم يدعم 768 بُعد">
+                <Input
+                  dir="ltr"
+                  placeholder="gemini-embedding-001"
+                  value={prov.embedModel}
+                  onChange={(e) => setProv((p) => ({ ...p, embedModel: e.target.value }))}
+                />
+              </Field>
+              <Button type="submit" variant="outline" loading={savingProv}>
+                حفظ المزوّد
+              </Button>
+            </form>
+          </Card>
+        )}
 
         {/* install hint */}
         <Card className="p-5">

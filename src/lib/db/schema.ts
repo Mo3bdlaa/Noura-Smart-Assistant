@@ -74,6 +74,8 @@ export const conversations = pgTable(
       .references(() => assistants.id, { onDelete: "cascade" }),
     type: text("type", { enum: ["main", "side", "incognito"] }).notNull(),
     title: text("title"),
+    // Optional roleplay/setup prompt for incognito conversations.
+    scenario: text("scenario"),
     isArchived: boolean("is_archived").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

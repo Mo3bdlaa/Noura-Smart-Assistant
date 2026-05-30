@@ -1,7 +1,7 @@
 import { and, cosineDistance, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { memories, messages } from "@/lib/db/schema";
-import { embed } from "@/lib/gemini/embeddings";
+import { embed } from "@/lib/llm/embeddings";
 
 /**
  * Delete a single message and (via ON DELETE CASCADE on memories.source_message_id)

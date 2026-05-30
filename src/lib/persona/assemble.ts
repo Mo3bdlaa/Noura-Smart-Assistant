@@ -21,6 +21,8 @@ export type AssembleInput = {
   /** Pre-framed things Noura should bring up naturally (security, follow-ups, time). */
   initiatives?: string[];
   conversationType: ConversationType;
+  /** Optional incognito roleplay/scenario setup written by the user. */
+  scenario?: string | null;
 };
 
 const MEMORY_LABEL: Record<RetrievedMemory["type"], string> = {
@@ -80,6 +82,11 @@ export function assembleSystem(input: AssembleInput): string {
     blocks.push(
       "ملاحظة داخلية: ده فضاء تخيّلي/incognito — اتصرفي بشكل كامل وطبيعي، بس اللي بيحصل هنا مش هيتسجّل في ذاكرتك بعدين.",
     );
+    if (input.scenario?.trim()) {
+      blocks.push(
+        `سيناريو المشهد اللي إنتي ماشية عليه دلوقتي (التزمي بيه وعيشي الدور):\n${input.scenario.trim()}`,
+      );
+    }
   }
 
   // (6) turn directive — realism + guardrails

@@ -16,6 +16,7 @@ export async function GET() {
 const Body = z.object({
   type: z.enum(["side", "incognito"]),
   title: z.string().trim().max(80).optional(),
+  scenario: z.string().trim().max(2000).optional(),
 });
 
 export async function POST(req: Request) {
@@ -23,7 +24,10 @@ export async function POST(req: Request) {
     const { ctx } = await requireTenant();
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
-    const conv = await createConversation(ctx, parsed.data.type, parsed.data.title);
+    const conv = await createConversation(ctx, parsed.data.type, {
+      title: parsed.data.title,
+      scenario: parsed.data.type === "incognito" ? parsed.data.scenario : undefined,
+    });
     return NextResponse.json({ conversation: conv });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.code }, { status: err.status });

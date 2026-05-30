@@ -2,17 +2,54 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Glasses, MessageCircleHeart, SendHorizontal, Trash2 } from "lucide-react";
+import {
+  Glasses,
+  ImagePlus,
+  MessageCircleHeart,
+  Mic,
+  Pencil,
+  SendHorizontal,
+  Trash2,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
 import { EmptyState } from "@/components/ui/Card";
 import { useConfirm } from "@/components/ui/Confirm";
 import { cn } from "@/lib/cn";
 
-type Msg = { id: string; role: "user" | "assistant"; content: string };
+type Msg = { id: string; role: "user" | "assistant"; content: string; images?: string[] };
+
+/** Downscale an image file to a small JPEG data URL (keeps the request small). */
+function fileToDataUrl(file: File, max = 1024): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("no canvas"));
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => reject(new Error("bad image"));
+    img.src = url;
+  });
+}
 type Props = {
   conversationId: string;
   conversationType: "main" | "side" | "incognito";
+  scenario?: string | null;
   assistantName: string;
   assistantMood: "happy" | "calm" | "upset";
   initialMessages: Msg[];
@@ -36,17 +73,105 @@ const TYPE_BANNER: Record<
 export function ChatWindow({
   conversationId,
   conversationType,
+  scenario,
   assistantName,
   assistantMood,
   initialMessages,
 }: Props) {
   const router = useRouter();
   const confirm = useConfirm();
+  const toast = useToast();
+  const [scen, setScen] = useState(scenario ?? "");
+  const [scenOpen, setScenOpen] = useState(false);
+  const [scenSaving, setScenSaving] = useState(false);
+
+  async function saveScenario() {
+    setScenSaving(true);
+    try {
+      await fetch(`/api/conversations/${conversationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario: scen.trim() }),
+      });
+      setScenOpen(false);
+      router.refresh();
+    } finally {
+      setScenSaving(false);
+    }
+  }
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function pickImages(files: FileList | null) {
+    if (!files?.length) return;
+    const picked = await Promise.all(
+      Array.from(files)
+        .filter((f) => f.type.startsWith("image/"))
+        .slice(0, 4)
+        .map((f) => fileToDataUrl(f).catch(() => null)),
+    );
+    setImages((prev) => [...prev, ...picked.filter((x): x is string => !!x)].slice(0, 4));
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  // --- voice: dictation (STT) + read-aloud (TTS), both free & browser-native ---
+  const [ttsOn, setTtsOn] = useState(false);
+  const [listening, setListening] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recogRef = useRef<any>(null);
+
+  useEffect(() => {
+    setTtsOn(localStorage.getItem("noura_tts") === "1");
+  }, []);
+
+  function speak(text: string) {
+    if (!ttsOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(text.replace(/[*_#`>~]/g, ""));
+    u.lang = "ar-EG";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }
+
+  function toggleTts() {
+    setTtsOn((v) => {
+      const nv = !v;
+      localStorage.setItem("noura_tts", nv ? "1" : "0");
+      if (!nv) window.speechSynthesis?.cancel();
+      return nv;
+    });
+  }
+
+  function toggleMic() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast("المتصفح ده مش بيدعم المايك، جرّب Chrome", "error");
+      return;
+    }
+    if (listening) {
+      recogRef.current?.stop();
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "ar-EG";
+    rec.interimResults = false;
+    rec.continuous = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      const t = e.results[0][0].transcript as string;
+      setInput((prev) => (prev ? prev + " " : "") + t);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.start();
+    recogRef.current = rec;
+    setListening(true);
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -66,9 +191,16 @@ export function ChatWindow({
 
   async function send() {
     const text = input.trim();
-    if (!text || streaming) return;
+    const imgs = images;
+    if ((!text && imgs.length === 0) || streaming) return;
     setInput("");
-    const userMsg: Msg = { id: `tmp-${Date.now()}`, role: "user", content: text };
+    setImages([]);
+    const userMsg: Msg = {
+      id: `tmp-${Date.now()}`,
+      role: "user",
+      content: text,
+      images: imgs.length ? imgs : undefined,
+    };
     const draftId = `draft-${Date.now()}`;
     setMessages((m) => [...m, userMsg, { id: draftId, role: "assistant", content: "" }]);
     setStreaming(true);
@@ -77,7 +209,7 @@ export function ChatWindow({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, message: text }),
+        body: JSON.stringify({ conversationId, message: text, images: imgs }),
       });
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({}));
@@ -92,6 +224,7 @@ export function ChatWindow({
         acc += decoder.decode(value, { stream: true });
         setMessages((m) => m.map((x) => (x.id === draftId ? { ...x, content: acc } : x)));
       }
+      speak(acc);
       router.refresh();
     } catch (e) {
       setMessages((m) =>
@@ -120,12 +253,26 @@ export function ChatWindow({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {banner && (
+      {conversationType === "incognito" ? (
+        <button
+          onClick={() => {
+            setScen(scenario ?? scen);
+            setScenOpen(true);
+          }}
+          className="flex items-center justify-center gap-1.5 text-[12px] text-muted py-1.5 px-3 bg-elevated/60 border-b border-border hover:text-ink transition-theme w-full"
+        >
+          <Glasses className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {scen?.trim() ? `🎬 ${scen.trim()}` : "وضع تخيّلي — اضغط لكتابة سيناريو"}
+          </span>
+          <Pencil className="size-3 shrink-0 opacity-70" />
+        </button>
+      ) : banner ? (
         <div className="flex items-center justify-center gap-1.5 text-[12px] text-muted py-1.5 bg-elevated/60 border-b border-border">
           {banner.icon}
           {banner.text}
         </div>
-      )}
+      ) : null}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3 px-3 sm:px-4 py-5 max-w-3xl mx-auto w-full">
@@ -152,31 +299,126 @@ export function ChatWindow({
       </div>
 
       <div className="border-t border-border bg-surface/80 backdrop-blur-md p-3 pb-safe">
-        <div className="flex items-end gap-2 max-w-3xl mx-auto">
-          <textarea
-            ref={taRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={1}
-            placeholder={`اكتب لـ ${assistantName}...`}
-            className="flex-1 resize-none rounded-2xl bg-bg border border-border px-4 py-3 text-ink placeholder:text-faint outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme max-h-40 leading-relaxed"
-          />
-          <button
-            onClick={send}
-            disabled={streaming || !input.trim()}
-            aria-label="ابعت"
-            className="shrink-0 size-12 grid place-items-center rounded-2xl bg-gradient-to-b from-gold to-amber text-on-accent shadow-soft disabled:opacity-40 active:scale-95 transition-theme"
-          >
-            <SendHorizontal className="size-5 -scale-x-100" />
-          </button>
+        <div className="max-w-3xl mx-auto space-y-2">
+          {images.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {images.map((src, i) => (
+                <div key={i} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="size-16 rounded-xl object-cover border border-border" />
+                  <button
+                    onClick={() => setImages((im) => im.filter((_, j) => j !== i))}
+                    className="absolute -top-1.5 -left-1.5 size-5 grid place-items-center rounded-full bg-overlay text-white shadow-soft"
+                    aria-label="شيل الصورة"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => pickImages(e.target.files)}
+            />
+            <button
+              onClick={toggleTts}
+              aria-label="قراءة بصوت"
+              title={ttsOn ? "النطق مفعّل" : "النطق مقفول"}
+              className={cn(
+                "shrink-0 size-11 grid place-items-center rounded-2xl transition-theme active:scale-95",
+                ttsOn ? "bg-accent-soft text-accent" : "bg-elevated text-muted hover:text-ink",
+              )}
+            >
+              {ttsOn ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
+            </button>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={streaming || images.length >= 4}
+              aria-label="إرفاق صورة"
+              className="shrink-0 size-11 grid place-items-center rounded-2xl bg-elevated text-muted hover:text-ink disabled:opacity-40 active:scale-95 transition-theme"
+            >
+              <ImagePlus className="size-5" />
+            </button>
+            <button
+              onClick={toggleMic}
+              aria-label="إدخال صوتي"
+              className={cn(
+                "shrink-0 size-11 grid place-items-center rounded-2xl transition-theme active:scale-95",
+                listening
+                  ? "bg-danger text-white animate-pulse-glow"
+                  : "bg-elevated text-muted hover:text-ink",
+              )}
+            >
+              <Mic className="size-5" />
+            </button>
+            <textarea
+              ref={taRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              rows={1}
+              placeholder={`اكتب لـ ${assistantName}...`}
+              className="flex-1 resize-none rounded-2xl bg-bg border border-border px-4 py-3 text-ink placeholder:text-faint outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme max-h-40 leading-relaxed"
+            />
+            <button
+              onClick={send}
+              disabled={streaming || (!input.trim() && images.length === 0)}
+              aria-label="ابعت"
+              className="shrink-0 size-12 grid place-items-center rounded-2xl bg-gradient-to-b from-gold to-amber text-on-accent shadow-soft disabled:opacity-40 active:scale-95 transition-theme"
+            >
+              <SendHorizontal className="size-5 -scale-x-100" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* scenario editor (incognito) */}
+      {scenOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-overlay/55 animate-fade-in"
+          onClick={() => setScenOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 shadow-raised animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2.5 mb-1">
+              <Glasses className="size-5 text-accent" />
+              <h2 className="text-lg font-bold text-ink">سيناريو المشهد</h2>
+            </div>
+            <p className="text-sm text-muted mb-3">
+              اكتب الدور/المشهد اللي عايز {assistantName} تمشي عليه. سيبه فاضي عشان تلغيه.
+            </p>
+            <textarea
+              value={scen}
+              onChange={(e) => setScen(e.target.value)}
+              rows={4}
+              autoFocus
+              placeholder="مثلاً: إحنا في مقهى، وإنتي صاحبتي القديمة..."
+              className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink placeholder:text-faint outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme resize-none"
+            />
+            <div className="flex gap-2 mt-4">
+              <Button variant="ghost" block onClick={() => setScenOpen(false)}>
+                إلغاء
+              </Button>
+              <Button block loading={scenSaving} onClick={saveScenario}>
+                حفظ
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -208,10 +450,23 @@ function Bubble({
       {!isUser && <Avatar name={assistantName} size="sm" mood={assistantMood} className="mb-0.5" />}
 
       <div className={cn("space-y-1.5 min-w-0", isUser && "flex flex-col items-end")}>
+        {msg.images?.length ? (
+          <div className="flex gap-1.5 flex-wrap justify-end">
+            {msg.images.map((src, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={src}
+                alt=""
+                className="max-w-[12rem] max-h-48 rounded-2xl border border-border object-cover shadow-soft"
+              />
+            ))}
+          </div>
+        ) : null}
         {isEmptyDraft ? (
           <TypingDots />
-        ) : (
-          (parts.length ? parts : [msg.content || "…"]).map((p, i) => (
+        ) : !msg.content ? null : (
+          (parts.length ? parts : [msg.content]).map((p, i) => (
             <div
               key={i}
               className={cn(

@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { agentMessages, assistants, users } from "@/lib/db/schema";
-import { CHAT_MODEL, withGemini } from "@/lib/gemini/client";
+import { generateText } from "@/lib/llm/chat";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 
 /**
@@ -47,14 +47,9 @@ export async function adminQueryAssistant(opts: {
 
   const prompt = `سؤال الأدمن: ${opts.question}\n\nاللي عندنا عن المستخدم ده:\n${memText}`;
 
-  const res = await withGemini((ai) =>
-    ai.models.generateContent({
-      model: CHAT_MODEL,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { systemInstruction: system, temperature: 0.6, maxOutputTokens: 600 },
-    }),
-  );
-  const answer = res.text?.trim() || "معرفتش ألاقي حاجة عن ده.";
+  const answer =
+    (await generateText({ system, prompt, temperature: 0.6, maxTokens: 600 })) ||
+    "معرفتش ألاقي حاجة عن ده.";
 
   await db.insert(agentMessages).values({
     fromAssistantId: opts.adminAssistantId,
