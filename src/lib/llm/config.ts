@@ -36,7 +36,7 @@ export async function getLlmConfig(): Promise<LlmConfig> {
   const utilityModel =
     process.env.LLM_UTILITY_MODEL ||
     (await getSetting("llm_utility_model")) ||
-    "gemini-2.0-flash-lite";
+    "gemini-2.5-flash-lite";
 
   const embedModel =
     process.env.LLM_EMBED_MODEL ||
