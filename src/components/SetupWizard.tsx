@@ -6,12 +6,14 @@ import { ArrowLeft, ArrowRight, KeyRound, PartyPopper, Sparkles, User } from "lu
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input, Field } from "@/components/ui/Input";
+import { useI18n } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 
 const STEPS = ["أهلًا", "حسابك", "مفتاح Gemini", "نورا"] as const;
 
 export function SetupWizard() {
   const router = useRouter();
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     displayName: "",
@@ -29,7 +31,7 @@ export function SetupWizard() {
   function next() {
     setError("");
     if (step === 1 && (!form.displayName || !form.adminEmail || form.adminPassword.length < 8)) {
-      setError("كمّل بياناتك (الباسورد ٨ حروف على الأقل).");
+      setError(t("كمّل بياناتك (الباسورد ٨ حروف على الأقل).", "Complete your details (password ≥ 8 chars)."));
       return;
     }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -47,7 +49,7 @@ export function SetupWizard() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "حصل خطأ");
+        setError(data.error ?? t("حصل خطأ", "Something went wrong"));
         return;
       }
       router.push("/chat");
@@ -81,31 +83,34 @@ export function SetupWizard() {
           {step === 0 && (
             <div className="text-center space-y-3 py-2">
               <Avatar size="xl" mood="happy" className="mx-auto" />
-              <h1 className="text-2xl font-extrabold text-ink">يلا نجهّز أنيس</h1>
+              <h1 className="text-2xl font-extrabold text-ink">{t("يلا نجهّز أنيس", "Let's set up Anees")}</h1>
               <p className="text-muted text-sm leading-relaxed max-w-xs mx-auto">
-                كام خطوة بسيطة ونبقى جاهزين — حسابك، مفتاح Gemini، واسم مساعدك.
+                {t(
+                  "كام خطوة بسيطة ونبقى جاهزين — حسابك، مفتاح Gemini، واسم مساعدك.",
+                  "A few quick steps — your account, a Gemini key, and your assistant's name.",
+                )}
               </p>
             </div>
           )}
 
           {step === 1 && (
-            <StepBody icon={<User className="size-5" />} title="حسابك (الأدمن)">
-              <Field label="اسمك">
-                <Input placeholder="مثلاً: محمد" value={form.displayName} onChange={set("displayName")} />
+            <StepBody icon={<User className="size-5" />} title={t("حسابك (الأدمن)", "Your account (admin)")}>
+              <Field label={t("اسمك", "Your name")}>
+                <Input placeholder={t("مثلاً: محمد", "e.g. Omar")} value={form.displayName} onChange={set("displayName")} />
               </Field>
-              <Field label="الإيميل">
+              <Field label={t("الإيميل", "Email")}>
                 <Input type="email" placeholder="[email protected]" value={form.adminEmail} onChange={set("adminEmail")} />
               </Field>
-              <Field label="الباسورد" hint="٨ حروف على الأقل">
+              <Field label={t("الباسورد", "Password")} hint={t("٨ حروف على الأقل", "At least 8 characters")}>
                 <Input type="password" placeholder="••••••••" value={form.adminPassword} onChange={set("adminPassword")} />
               </Field>
             </StepBody>
           )}
 
           {step === 2 && (
-            <StepBody icon={<KeyRound className="size-5" />} title="مفتاح Gemini">
+            <StepBody icon={<KeyRound className="size-5" />} title={t("مفتاح Gemini", "Gemini key")}>
               <p className="text-sm text-muted leading-relaxed">
-                من غيره نورا مش هتقدر تتكلم. خده مجانًا من{" "}
+                {t("من غيره مساعدك مش هيقدر يتكلم. خده مجانًا من", "Without it your assistant can't talk. Get one free from")}{" "}
                 <a
                   href="https://aistudio.google.com/apikey"
                   target="_blank"
@@ -114,18 +119,18 @@ export function SetupWizard() {
                 >
                   Google AI Studio
                 </a>
-                . تقدر تسيبه فاضي وتحطه بعدين من الإعدادات.
+                {t(". تقدر تسيبه فاضي وتحطه بعدين من الإعدادات.", ". You can leave it empty and add it later in Settings.")}
               </p>
-              <Field label="المفتاح">
+              <Field label={t("المفتاح", "Key")}>
                 <Input placeholder="AIza... أو AQ..." value={form.geminiApiKey} onChange={set("geminiApiKey")} />
               </Field>
             </StepBody>
           )}
 
           {step === 3 && (
-            <StepBody icon={<Sparkles className="size-5" />} title="اسم مساعدتك">
-              <p className="text-sm text-muted">إنت الأدمن، فتقدر تسميها "نورا" 😏</p>
-              <Field label="الاسم">
+            <StepBody icon={<Sparkles className="size-5" />} title={t("اسم مساعدتك", "Your assistant's name")}>
+              <p className="text-sm text-muted">{t('إنت الأدمن، فتقدر تسميها "نورا" 😏', 'You\'re the admin, so you can name her "Noura" 😏')}</p>
+              <Field label={t("الاسم", "Name")}>
                 <Input value={form.assistantName} onChange={set("assistantName")} />
               </Field>
             </StepBody>
@@ -135,16 +140,16 @@ export function SetupWizard() {
           <div className="flex gap-2">
             {step > 0 && (
               <Button variant="ghost" onClick={back}>
-                <ArrowRight className="size-4" /> رجوع
+                <ArrowRight className="size-4" /> {t("رجوع", "Back")}
               </Button>
             )}
             {step < STEPS.length - 1 ? (
               <Button block onClick={next}>
-                يلا <ArrowLeft className="size-4" />
+                {t("يلا", "Next")} <ArrowLeft className="size-4" />
               </Button>
             ) : (
               <Button block loading={busy} onClick={finish}>
-                خلّصنا <PartyPopper className="size-4" />
+                {t("خلّصنا", "Done")} <PartyPopper className="size-4" />
               </Button>
             )}
           </div>

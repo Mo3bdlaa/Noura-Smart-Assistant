@@ -9,6 +9,7 @@ import { Card, Chip, EmptyState } from "@/components/ui/Card";
 import { IconButton } from "@/components/ui/IconButton";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 
 type Reminder = {
@@ -23,6 +24,7 @@ type Reminder = {
 export default function RemindersPage() {
   const confirm = useConfirm();
   const toast = useToast();
+  const { t, locale } = useI18n();
   const [items, setItems] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<"reminder" | "important_date">("reminder");
@@ -44,7 +46,7 @@ export default function RemindersPage() {
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !when) {
-      toast("اكتب العنوان والتاريخ", "error");
+      toast(t("اكتب العنوان والتاريخ", "Enter a title and date"), "error");
       return;
     }
     setSaving(true);
@@ -60,12 +62,12 @@ export default function RemindersPage() {
         }),
       });
       if (!res.ok) {
-        toast("مش قادر أحفظ", "error");
+        toast(t("مش قادر أحفظ", "Couldn't save"), "error");
         return;
       }
       setTitle("");
       setWhen("");
-      toast("اتسجّل ✅", "success");
+      toast(t("اتسجّل ✅", "Saved ✅"), "success");
       load();
     } finally {
       setSaving(false);
@@ -73,7 +75,12 @@ export default function RemindersPage() {
   }
 
   async function del(id: string) {
-    const ok = await confirm({ title: "تمسح ده؟", confirmText: "امسح", danger: true });
+    const ok = await confirm({
+      title: t("تمسح ده؟", "Delete this?"),
+      confirmText: t("امسح", "Delete"),
+      cancelText: t("إلغاء", "Cancel"),
+      danger: true,
+    });
     if (!ok) return;
     await fetch(`/api/reminders/${id}`, { method: "DELETE" });
     setItems((x) => x.filter((r) => r.id !== id));
@@ -81,10 +88,11 @@ export default function RemindersPage() {
 
   function fmt(r: Reminder): string {
     if (!r.dueAt) return "";
+    const loc = locale === "en" ? "en-US" : "ar-EG";
     const d = new Date(r.dueAt);
     return r.kind === "important_date"
-      ? d.toLocaleDateString("ar-EG", { day: "numeric", month: "long" })
-      : d.toLocaleString("ar-EG", {
+      ? d.toLocaleDateString(loc, { day: "numeric", month: "long" })
+      : d.toLocaleString(loc, {
           day: "numeric",
           month: "short",
           hour: "2-digit",
@@ -93,16 +101,20 @@ export default function RemindersPage() {
   }
 
   return (
-    <PageShell title="التذكيرات والمناسبات" icon={<Bell className="size-5" />}>
+    <PageShell title={t("التذكيرات والمناسبات", "Reminders & dates")} icon={<Bell className="size-5" />}>
       {/* add form */}
       <Card className="p-5 mb-6">
         <div className="flex gap-2 mb-4">
-          <KindTab active={kind === "reminder"} onClick={() => setKind("reminder")} icon={<Bell className="size-4" />} label="تذكير" />
-          <KindTab active={kind === "important_date"} onClick={() => setKind("important_date")} icon={<CalendarHeart className="size-4" />} label="مناسبة سنوية" />
+          <KindTab active={kind === "reminder"} onClick={() => setKind("reminder")} icon={<Bell className="size-4" />} label={t("تذكير", "Reminder")} />
+          <KindTab active={kind === "important_date"} onClick={() => setKind("important_date")} icon={<CalendarHeart className="size-4" />} label={t("مناسبة سنوية", "Yearly date")} />
         </div>
         <form onSubmit={add} className="space-y-3">
           <Input
-            placeholder={kind === "reminder" ? "أفكّرك بإيه؟" : "مناسبة إيه؟ (عيد ميلاد، ذكرى...)"}
+            placeholder={
+              kind === "reminder"
+                ? t("أفكّرك بإيه؟", "Remind you of what?")
+                : t("مناسبة إيه؟ (عيد ميلاد، ذكرى...)", "Which occasion? (birthday, anniversary...)")
+            }
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -113,7 +125,7 @@ export default function RemindersPage() {
             className="[color-scheme:light] dark:[color-scheme:dark]"
           />
           <Button type="submit" loading={saving}>
-            <Plus className="size-4" /> ضيف
+            <Plus className="size-4" /> {t("ضيف", "Add")}
           </Button>
         </form>
       </Card>
@@ -126,8 +138,8 @@ export default function RemindersPage() {
           ))}
         </ul>
       ) : items.length === 0 ? (
-        <EmptyState icon={<Bell className="size-6" />} title="مفيش تذكيرات لسه">
-          ضيف تذكير أو مناسبة، ومساعدك هيفكّرك بيها في وقتها.
+        <EmptyState icon={<Bell className="size-6" />} title={t("مفيش تذكيرات لسه", "No reminders yet")}>
+          {t("ضيف تذكير أو مناسبة، ومساعدك هيفكّرك بيها في وقتها.", "Add a reminder or date and your assistant will nudge you in time.")}
         </EmptyState>
       ) : (
         <ul className="space-y-2">
@@ -156,7 +168,7 @@ export default function RemindersPage() {
                   </div>
                   <div className="text-xs text-muted flex items-center gap-1.5">
                     {fmt(r)}
-                    {r.recurrence === "yearly" && <Chip tone="warm">كل سنة</Chip>}
+                    {r.recurrence === "yearly" && <Chip tone="warm">{t("كل سنة", "Yearly")}</Chip>}
                   </div>
                 </div>
                 <IconButton size="sm" subtle onClick={() => del(r.id)} aria-label="حذف">

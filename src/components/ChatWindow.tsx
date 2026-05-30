@@ -224,7 +224,7 @@ export function ChatWindow({
       });
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "حصل خطأ، جرّب تاني");
+        throw new Error(err.error ?? t("حصل خطأ، جرّب تاني", "Something went wrong, try again"));
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -301,7 +301,7 @@ export function ChatWindow({
       ) : banner ? (
         <div className="flex items-center justify-center gap-1.5 text-[12px] text-muted py-1.5 bg-elevated/60 border-b border-border">
           {banner.icon}
-          {banner.text}
+          {t("محادثة جانبية — بتتسجّل في ذاكرتها العامة.", "Side chat — saved to her general memory.")}
         </div>
       ) : null}
 
