@@ -7,7 +7,7 @@ const nextConfig = {
     },
   },
   // Keep native/napi deps external to the server bundle so their binaries load.
-  serverExternalPackages: ["@node-rs/argon2", "postgres"],
+  serverExternalPackages: ["@node-rs/argon2", "postgres", "web-push"],
 };
 
 export default nextConfig;

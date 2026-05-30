@@ -7,6 +7,7 @@ import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input, Field } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { NotificationsCard } from "@/components/NotificationsCard";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 
@@ -186,6 +187,9 @@ export function SettingsForm({
             </Button>
           </form>
         </Card>
+
+        {/* notifications */}
+        <NotificationsCard />
 
         {/* LLM provider (admin only) */}
         {isAdmin && (

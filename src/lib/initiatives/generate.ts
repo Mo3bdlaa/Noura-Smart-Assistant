@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { loginAttempts, pendingInitiatives, reminders } from "@/lib/db/schema";
+import { assistants, loginAttempts, pendingInitiatives, reminders } from "@/lib/db/schema";
+import { sendPushToUser } from "@/lib/push/send";
 
 /**
  * Turn raw events into "things Noura wants to say". Idempotent-ish: security
@@ -38,12 +39,29 @@ export async function generateSecurityInitiatives(userId: string, assistantId: s
   }
 }
 
-export async function generateReminderInitiatives(userId: string, assistantId: string, now = new Date()) {
+export async function generateReminderInitiatives(
+  userId: string,
+  assistantId: string,
+  opts: { now?: Date; notify?: boolean } = {},
+) {
+  const now = opts.now ?? new Date();
   const due = await db
     .select()
     .from(reminders)
     .where(and(eq(reminders.userId, userId), isNull(reminders.firedAt)))
     .limit(20);
+
+  let assistantName: string | null = null;
+  const nameOf = async () => {
+    if (assistantName) return assistantName;
+    const [a] = await db
+      .select({ name: assistants.name })
+      .from(assistants)
+      .where(eq(assistants.id, assistantId))
+      .limit(1);
+    assistantName = a?.name ?? "نورا";
+    return assistantName;
+  };
 
   for (const r of due) {
     if (r.dueAt && r.dueAt <= now) {
@@ -54,6 +72,18 @@ export async function generateReminderInitiatives(userId: string, assistantId: s
         priority: 3,
         payload: { title: r.title, kind: r.kind },
       });
+      // Proactive push (when the app may be closed) — in her voice.
+      if (opts.notify) {
+        const name = await nameOf();
+        await sendPushToUser(userId, {
+          title: name,
+          body:
+            r.kind === "important_date"
+              ? `النهاردة: ${r.title} 🎉 متنساش!`
+              : `فاكر إن النهاردة: ${r.title}؟ 💛`,
+          url: "/chat",
+        });
+      }
       if (r.recurrence === "yearly") {
         // Roll a recurring date forward to its next future occurrence (stays active).
         const next = new Date(r.dueAt);

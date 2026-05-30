@@ -283,4 +283,18 @@ CREATE INDEX IF NOT EXISTS "memories_embedding_idx" ON "memories" USING hnsw ("e
 CREATE INDEX IF NOT EXISTS "memories_scope_idx" ON "memories" USING btree ("user_id","assistant_id","type");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "messages_conversation_idx" ON "messages" USING btree ("conversation_id","created_at");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "pending_initiatives_scope_idx" ON "pending_initiatives" USING btree ("assistant_id","surfaced_at");--> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "trusted_devices_user_fp_idx" ON "trusted_devices" USING btree ("user_id","fingerprint");
+CREATE UNIQUE INDEX IF NOT EXISTS "trusted_devices_user_fp_idx" ON "trusted_devices" USING btree ("user_id","fingerprint");--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "push_subscriptions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"endpoint" text NOT NULL,
+	"p256dh" text NOT NULL,
+	"auth" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "push_subscriptions_endpoint_unique" UNIQUE("endpoint")
+);
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "push_subscriptions" ADD CONSTRAINT "push_subscriptions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
