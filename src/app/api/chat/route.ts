@@ -16,7 +16,14 @@ import {
   generateSecurityInitiatives,
 } from "@/lib/initiatives/generate";
 import { surfaceInitiatives } from "@/lib/initiatives/surface";
-import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
+import {
+  getConversation,
+  recentHistory,
+  saveMessage,
+  setConversationTitle,
+} from "@/lib/chat/store";
+import { generateTitle } from "@/lib/chat/title";
+import { maybeUpdateProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 import { getLocale } from "@/lib/i18n";
 import { detectTask } from "@/lib/tasks/detect";
@@ -135,6 +142,26 @@ export async function POST(req: Request) {
         if (task) await createTask(ctx, task);
       } catch (e) {
         console.error("task detect failed", e);
+      }
+    }
+    // Auto-name side/incognito conversations once there's something to name.
+    if (conv.type !== "main" && !conv.title) {
+      try {
+        const hist = await recentHistory(conversationId, 6);
+        if (hist.length >= 2) {
+          const title = await generateTitle(hist, user.locale);
+          if (title) await setConversationTitle(ctx, conversationId, title);
+        }
+      } catch (e) {
+        console.error("title gen failed", e);
+      }
+    }
+    // Keep her evolving read on the user fresh (skip incognito).
+    if (conv.type !== "incognito") {
+      try {
+        await maybeUpdateProfile(ctx.userId, ctx.assistantId, user.locale);
+      } catch (e) {
+        console.error("profile update failed", e);
       }
     }
     // Activity-driven: run anything that's due right now (no external trigger).

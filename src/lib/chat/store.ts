@@ -58,6 +58,14 @@ export async function setMessageReaction(ctx: TenantContext, id: string, reactio
     .where(and(eq(messages.id, id), eq(messages.userId, ctx.userId)));
 }
 
+/** Set a conversation's title (auto-generated for side/incognito chats). */
+export async function setConversationTitle(ctx: TenantContext, id: string, title: string) {
+  await db
+    .update(conversations)
+    .set({ title })
+    .where(and(eq(conversations.id, id), eq(conversations.userId, ctx.userId)));
+}
+
 /** Update an incognito conversation's scenario (roleplay setup). */
 export async function updateScenario(ctx: TenantContext, id: string, scenario: string | null) {
   await db

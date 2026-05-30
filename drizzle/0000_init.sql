@@ -320,3 +320,14 @@ CREATE INDEX IF NOT EXISTS "tasks_due_idx" ON "tasks" ("active","next_run_at");
 DO $$ BEGIN ALTER TABLE "tasks" ADD CONSTRAINT "tasks_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
 --> statement-breakpoint
 DO $$ BEGIN ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assistant_id_fk" FOREIGN KEY ("assistant_id") REFERENCES "assistants"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "personality_profiles" (
+  "assistant_id" uuid PRIMARY KEY NOT NULL,
+  "user_id" uuid NOT NULL,
+  "summary" text,
+  "report" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "message_count_at_update" integer DEFAULT 0 NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+DO $$ BEGIN ALTER TABLE "personality_profiles" ADD CONSTRAINT "pp_assistant_fk" FOREIGN KEY ("assistant_id") REFERENCES "assistants"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN ALTER TABLE "personality_profiles" ADD CONSTRAINT "pp_user_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;

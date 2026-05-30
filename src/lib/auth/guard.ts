@@ -10,6 +10,7 @@ export type AuthedUser = {
   role: "admin" | "user";
   displayName: string | null;
   timezone: string;
+  locale: "ar" | "en";
   isLocked: boolean;
 };
 
@@ -25,6 +26,7 @@ export async function currentUser(): Promise<AuthedUser | null> {
       role: users.role,
       displayName: users.displayName,
       timezone: users.timezone,
+      locale: users.locale,
       isLocked: users.isLocked,
     })
     .from(sessions)

@@ -343,6 +343,25 @@ export const tasks = pgTable(
 );
 export type Task = typeof tasks.$inferSelect;
 
+/**
+ * The assistant's evolving personality read on its user — a living profile she
+ * keeps and refreshes from conversations + memories. Viewable by the user and
+ * (for all users) by the admin.
+ */
+export const personalityProfiles = pgTable("personality_profiles", {
+  assistantId: uuid("assistant_id")
+    .primaryKey()
+    .references(() => assistants.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  summary: text("summary"), // one-paragraph read
+  report: jsonb("report").notNull().default(sql`'{}'::jsonb`), // structured sections
+  messageCountAtUpdate: integer("message_count_at_update").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export type PersonalityProfile = typeof personalityProfiles.$inferSelect;
+
 // Inferred types
 export type User = typeof users.$inferSelect;
 export type Assistant = typeof assistants.$inferSelect;
