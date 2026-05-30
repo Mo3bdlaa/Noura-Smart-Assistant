@@ -184,7 +184,7 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error("stream error", e);
         if (!full) {
-          const msg = "حصل عندي لخبطة بسيطة، ابعتها تاني 🙈";
+          const msg = "⚠️ حصلت لخبطة بسيطة — اضغط زرار الإعادة 🔄";
           full = msg;
           controller.enqueue(encoder.encode(msg));
         }

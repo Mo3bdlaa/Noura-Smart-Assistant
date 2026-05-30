@@ -1,0 +1,117 @@
+import { NextResponse } from "next/server";
+import { desc, eq } from "drizzle-orm";
+import { z } from "zod";
+import { db } from "@/lib/db/client";
+import { assistants, messages, type CanonEntry } from "@/lib/db/schema";
+import { AuthError, requireTenant } from "@/lib/auth/guard";
+import { streamChat } from "@/lib/llm/chat";
+import { assembleSystem } from "@/lib/persona/assemble";
+import { retrieveMemories } from "@/lib/memory/retrieve";
+import { readMood } from "@/lib/mood/state";
+import { timeContext } from "@/lib/time/awareness";
+import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
+import { getLocale } from "@/lib/i18n";
+
+export const maxDuration = 60;
+
+const Body = z.object({ conversationId: z.string().uuid() });
+
+/** Re-generate the assistant's reply to the last user message (replaces it). */
+export async function POST(req: Request) {
+  let user, ctx;
+  try {
+    ({ user, ctx } = await requireTenant());
+  } catch (err) {
+    if (err instanceof AuthError) return NextResponse.json({ error: err.code }, { status: err.status });
+    throw err;
+  }
+
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
+  const { conversationId } = parsed.data;
+
+  const conv = await getConversation(ctx, conversationId);
+  if (!conv) return NextResponse.json({ error: "المحادثة مش موجودة" }, { status: 404 });
+
+  // Look at the tail: delete the last assistant reply, find the last user turn.
+  const tail = await db
+    .select({ id: messages.id, role: messages.role, content: messages.content, meta: messages.meta })
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(desc(messages.createdAt))
+    .limit(8);
+
+  const lastAssistant = tail.find((m) => m.role === "assistant");
+  const lastUser = tail.find((m) => m.role === "user");
+  if (!lastUser) return NextResponse.json({ error: "مفيش رسالة تعيدي عليها" }, { status: 400 });
+  if (lastAssistant) {
+    await db.delete(messages).where(eq(messages.id, lastAssistant.id));
+  }
+
+  const images = (lastUser.meta as { images?: string[] } | null)?.images;
+
+  const [assistant] = await db
+    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon })
+    .from(assistants)
+    .where(eq(assistants.id, ctx.assistantId))
+    .limit(1);
+
+  const safeRetrieve = retrieveMemories({
+    userId: ctx.userId,
+    assistantId: ctx.assistantId,
+    query: lastUser.content,
+  }).catch(() => []);
+
+  const [history, memories, mood, locale] = await Promise.all([
+    recentHistory(conversationId), // now ends at the last user turn
+    safeRetrieve,
+    readMood(ctx.assistantId),
+    getLocale(),
+  ]);
+
+  const system = assembleSystem({
+    assistantName: assistant?.name ?? "نورا",
+    dials: (assistant?.persona as Record<string, number>) ?? undefined,
+    canon: (assistant?.canon as CanonEntry[]) ?? [],
+    mood,
+    memories,
+    time: timeContext(user.timezone),
+    userDisplayName: user.displayName,
+    conversationType: conv.type,
+    scenario: conv.scenario,
+    locale,
+  });
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let full = "";
+      try {
+        for await (const delta of streamChat({ system, history, images, temperature: 1.0 })) {
+          full += delta;
+          controller.enqueue(encoder.encode(delta));
+        }
+      } catch (e) {
+        console.error("regenerate stream error", e);
+      } finally {
+        if (full.trim()) {
+          await saveMessage({
+            conversationId,
+            userId: ctx!.userId,
+            role: "assistant",
+            content: full,
+          });
+        }
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}

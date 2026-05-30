@@ -8,6 +8,7 @@ import {
   MessageCircleHeart,
   Mic,
   Pencil,
+  RotateCcw,
   SendHorizontal,
   SmilePlus,
   Trash2,
@@ -263,6 +264,40 @@ export function ChatWindow({
     });
   }
 
+  async function regenerate() {
+    if (streaming) return;
+    const lastIdx = messages.length - 1;
+    const last = messages[lastIdx];
+    if (!last || last.role !== "assistant" || last.id.startsWith("draft-")) return;
+    setMessages((m) => m.map((x, i) => (i === lastIdx ? { ...x, content: "" } : x)));
+    setStreaming(true);
+    try {
+      const res = await fetch("/api/chat/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId }),
+      });
+      if (!res.ok || !res.body) throw new Error(t("مش قادرة أعيد، جرّب تاني", "Couldn't regenerate, try again"));
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setMessages((m) => m.map((x, i) => (i === lastIdx ? { ...x, content: acc } : x)));
+      }
+      speak(acc);
+      router.refresh();
+    } catch (e) {
+      setMessages((m) =>
+        m.map((x, i) => (i === lastIdx ? { ...x, content: `⚠️ ${(e as Error).message}` } : x)),
+      );
+    } finally {
+      setStreaming(false);
+    }
+  }
+
   async function deleteMessage(id: string) {
     if (id.startsWith("tmp-") || id.startsWith("draft-")) return;
     const ok = await confirm({
@@ -315,7 +350,7 @@ export function ChatWindow({
               {t("اكتب أي حاجة في بالك 👋", "Say anything on your mind 👋")}
             </EmptyState>
           ) : (
-            messages.map((m) => (
+            messages.map((m, i) => (
               <Bubble
                 key={m.id}
                 msg={m}
@@ -324,6 +359,8 @@ export function ChatWindow({
                 streaming={streaming}
                 onDelete={() => deleteMessage(m.id)}
                 onReact={(e) => react(m.id, e)}
+                canRegenerate={i === messages.length - 1 && m.role === "assistant"}
+                onRegenerate={regenerate}
               />
             ))
           )}
@@ -466,6 +503,8 @@ function Bubble({
   streaming,
   onDelete,
   onReact,
+  canRegenerate,
+  onRegenerate,
 }: {
   msg: Msg;
   assistantName: string;
@@ -473,6 +512,8 @@ function Bubble({
   streaming: boolean;
   onDelete: () => void;
   onReact: (emoji: string) => void;
+  canRegenerate?: boolean;
+  onRegenerate?: () => void;
 }) {
   const isUser = msg.role === "user";
   const parts = msg.content.split(/\n{2,}/).filter(Boolean);
@@ -533,6 +574,11 @@ function Bubble({
 
       {!isEmptyDraft && !isTemp && (
         <div className="relative self-center flex items-center">
+          {canRegenerate && !streaming && onRegenerate && (
+            <IconButton size="sm" onClick={onRegenerate} aria-label="إعادة توليد" title="Regenerate">
+              <RotateCcw className="size-3.5" />
+            </IconButton>
+          )}
           <IconButton size="sm" subtle onClick={() => setPickerOpen((o) => !o)} aria-label="تفاعل">
             <SmilePlus className="size-3.5" />
           </IconButton>
