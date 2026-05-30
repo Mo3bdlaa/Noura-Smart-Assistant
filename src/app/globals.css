@@ -12,34 +12,34 @@
    ========================================================================== */
 :root {
   /* surfaces */
-  --bg: 40 46% 96%;
-  --surface: 38 42% 93%;
-  --elevated: 36 38% 88%;
-  --overlay: 26 38% 16%;
+  --bg: 22 26% 96%;
+  --surface: 20 24% 93%;
+  --elevated: 18 22% 88%;
+  --overlay: 12 34% 16%;
   /* text */
-  --ink: 25 32% 17%;
-  --muted: 30 16% 42%;
-  --faint: 32 14% 58%;
-  --on-accent: 30 45% 13%;
-  /* warm brand */
-  --amber: 34 80% 52%;
-  --gold: 44 82% 50%;
-  --brown: 25 42% 30%;
-  --cream: 40 50% 94%;
-  /* accent (her eyes) */
+  --ink: 14 26% 18%;
+  --muted: 16 14% 42%;
+  --faint: 18 12% 58%;
+  --on-accent: 14 40% 14%;
+  /* warm brand (rose / terracotta / clay) */
+  --amber: 9 64% 55%;
+  --gold: 20 70% 60%;
+  --brown: 12 40% 32%;
+  --cream: 22 42% 94%;
+  /* accent (her green eyes) */
   --accent: 142 46% 38%;
   --accent-soft: 142 42% 91%;
   /* lines */
-  --border: 35 26% 82%;
-  --border-strong: 34 22% 71%;
+  --border: 18 20% 83%;
+  --border-strong: 16 18% 72%;
   --ring: 142 46% 46%;
   /* feedback */
-  --danger: 4 70% 47%;
-  --danger-soft: 6 72% 93%;
+  --danger: 2 72% 47%;
+  --danger-soft: 4 72% 93%;
   --success: 146 46% 36%;
   --success-soft: 146 44% 91%;
   /* effects */
-  --shadow: 25 42% 22%;
+  --shadow: 12 40% 22%;
 
   /* static design tokens */
   --radius: 0.95rem;

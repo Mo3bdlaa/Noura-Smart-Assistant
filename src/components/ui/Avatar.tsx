@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { isReservedName } from "@/lib/assistant/naming";
 
 type Size = "sm" | "md" | "lg" | "xl";
 const sizes: Record<Size, string> = {
@@ -10,8 +11,9 @@ const sizes: Record<Size, string> = {
 };
 
 /**
- * The assistant's mark — a warm golden-hour gradient orb. Shows the first
- * letter of her name, or a sparkle. Optionally rings with her mood state.
+ * The assistant's mark. For Noura (the reserved name) it shows her photo;
+ * otherwise a warm golden-hour gradient orb with the first letter of her name.
+ * Optionally rings with her mood state.
  */
 export function Avatar({
   name,
@@ -26,12 +28,26 @@ export function Avatar({
   className?: string;
 }) {
   const letter = name?.trim()?.[0];
+  const photo = name && isReservedName(name) ? "/noura-avatar.jpg" : null;
   const ring =
     mood === "upset"
       ? "ring-2 ring-border-strong"
       : mood === "happy"
         ? "ring-2 ring-amber/60"
         : "ring-1 ring-border";
+
+  if (photo) {
+    return (
+      <span
+        className={cn("relative inline-block rounded-full overflow-hidden shadow-soft", ring, sizes[size], className)}
+        aria-hidden
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo} alt="" className="size-full object-cover" />
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(
