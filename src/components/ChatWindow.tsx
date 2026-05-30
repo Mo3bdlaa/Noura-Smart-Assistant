@@ -9,6 +9,7 @@ import {
   Mic,
   Pencil,
   SendHorizontal,
+  SmilePlus,
   Trash2,
   Volume2,
   VolumeX,
@@ -22,7 +23,15 @@ import { EmptyState } from "@/components/ui/Card";
 import { useConfirm } from "@/components/ui/Confirm";
 import { cn } from "@/lib/cn";
 
-type Msg = { id: string; role: "user" | "assistant"; content: string; images?: string[] };
+type Msg = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  images?: string[];
+  reaction?: string | null;
+};
+
+const REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🔥", "🥰"];
 
 /** Downscale an image file to a small JPEG data URL (keeps the request small). */
 function fileToDataUrl(file: File, max = 1024): Promise<string> {
@@ -235,6 +244,23 @@ export function ChatWindow({
     }
   }
 
+  async function react(id: string, emoji: string) {
+    if (id.startsWith("tmp-") || id.startsWith("draft-")) return;
+    let next: string | null = emoji;
+    setMessages((m) =>
+      m.map((x) => {
+        if (x.id !== id) return x;
+        next = x.reaction === emoji ? null : emoji; // toggle off if same
+        return { ...x, reaction: next };
+      }),
+    );
+    await fetch(`/api/messages/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reaction: next }),
+    });
+  }
+
   async function deleteMessage(id: string) {
     if (id.startsWith("tmp-") || id.startsWith("draft-")) return;
     const ok = await confirm({
@@ -292,6 +318,7 @@ export function ChatWindow({
                 assistantMood={assistantMood}
                 streaming={streaming}
                 onDelete={() => deleteMessage(m.id)}
+                onReact={(e) => react(m.id, e)}
               />
             ))
           )}
@@ -429,16 +456,20 @@ function Bubble({
   assistantMood,
   streaming,
   onDelete,
+  onReact,
 }: {
   msg: Msg;
   assistantName: string;
   assistantMood: "happy" | "calm" | "upset";
   streaming: boolean;
   onDelete: () => void;
+  onReact: (emoji: string) => void;
 }) {
   const isUser = msg.role === "user";
   const parts = msg.content.split(/\n{2,}/).filter(Boolean);
   const isEmptyDraft = !isUser && msg.content === "" && streaming;
+  const isTemp = msg.id.startsWith("tmp-") || msg.id.startsWith("draft-");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div
@@ -450,7 +481,7 @@ function Bubble({
     >
       {!isUser && <Avatar name={assistantName} size="sm" mood={assistantMood} className="mb-0.5" />}
 
-      <div className="space-y-1.5 min-w-0">
+      <div className="relative space-y-1.5 min-w-0">
         {msg.images?.length ? (
           <div className="flex gap-1.5 flex-wrap">
             {msg.images.map((src, i) => (
@@ -481,11 +512,45 @@ function Bubble({
             </div>
           ))
         )}
+
+        {msg.reaction && (
+          <div className={cn("absolute -bottom-2.5 z-10", isUser ? "left-2" : "right-2")}>
+            <span className="inline-flex items-center rounded-full bg-surface border border-border px-1.5 py-0.5 text-[13px] leading-none shadow-soft">
+              {msg.reaction}
+            </span>
+          </div>
+        )}
       </div>
 
-      <IconButton size="sm" subtle onClick={onDelete} aria-label="حذف" className="self-center">
-        <Trash2 className="size-3.5" />
-      </IconButton>
+      {!isEmptyDraft && !isTemp && (
+        <div className="relative self-center flex items-center">
+          <IconButton size="sm" subtle onClick={() => setPickerOpen((o) => !o)} aria-label="تفاعل">
+            <SmilePlus className="size-3.5" />
+          </IconButton>
+          <IconButton size="sm" subtle onClick={onDelete} aria-label="حذف">
+            <Trash2 className="size-3.5" />
+          </IconButton>
+          {pickerOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
+              <div className="absolute bottom-full mb-1 z-30 flex gap-1 bg-surface border border-border rounded-full px-2 py-1 shadow-raised animate-pop">
+                {REACTIONS.map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => {
+                      onReact(e);
+                      setPickerOpen(false);
+                    }}
+                    className="text-lg leading-none hover:scale-125 transition-transform"
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -36,18 +36,26 @@ export async function* streamChat(opts: {
   temperature?: number;
 }): AsyncGenerator<string> {
   const { client, config } = await getClient();
-  const stream = await withLlm(() =>
-    client.chat.completions.create({
-      model: config.chatModel,
-      messages: toMessages(opts.system, opts.history, opts.images),
-      temperature: opts.temperature ?? 0.9,
-      max_tokens: 1200,
-      stream: true,
-    }),
-  );
+  // Build params; for Gemini's OpenAI-compat endpoint, disable "thinking" so no
+  // internal reasoning ever leaks into the reply (and it's faster).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const params: any = {
+    model: config.chatModel,
+    messages: toMessages(opts.system, opts.history, opts.images),
+    temperature: opts.temperature ?? 0.9,
+    max_tokens: 1200,
+    stream: true,
+  };
+  if (config.baseURL.includes("generativelanguage")) {
+    params.reasoning_effort = "none";
+  }
+  const stream = (await withLlm(() =>
+    client.chat.completions.create(params),
+  )) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>;
 
+  // We only ever surface `delta.content` — never any separate reasoning channel.
   for await (const chunk of stream) {
-    const text = chunk.choices[0]?.delta?.content;
+    const text = chunk.choices?.[0]?.delta?.content;
     if (text) yield text;
   }
 }

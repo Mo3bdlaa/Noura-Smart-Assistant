@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { conversations, messages, type ConversationType } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant";
@@ -46,6 +46,16 @@ export async function createConversation(
     })
     .returning();
   return row!;
+}
+
+/** Set/clear an emoji reaction on a message (stored in meta.reaction). */
+export async function setMessageReaction(ctx: TenantContext, id: string, reaction: string | null) {
+  await db
+    .update(messages)
+    .set({
+      meta: sql`coalesce(${messages.meta}, '{}'::jsonb) || ${JSON.stringify({ reaction })}::jsonb`,
+    })
+    .where(and(eq(messages.id, id), eq(messages.userId, ctx.userId)));
 }
 
 /** Update an incognito conversation's scenario (roleplay setup). */
