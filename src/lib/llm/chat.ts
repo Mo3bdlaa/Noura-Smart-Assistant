@@ -93,7 +93,7 @@ export async function generateText(opts: {
 }): Promise<string> {
   const config = await getLlmConfig();
   if (isGemini(config.baseURL)) {
-    return geminiGenerate({ ...opts });
+    return geminiGenerate({ ...opts, model: config.utilityModel });
   }
   const { client } = await getClient();
   const res = await withLlm(() =>
@@ -118,7 +118,7 @@ export async function generateJson<T = unknown>(opts: {
 }): Promise<T | null> {
   const config = await getLlmConfig();
   if (isGemini(config.baseURL)) {
-    const text = await geminiGenerate({ ...opts, json: true });
+    const text = await geminiGenerate({ ...opts, json: true, model: config.utilityModel });
     return parseJsonLoose<T>(text);
   }
   const { client } = await getClient();

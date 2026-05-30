@@ -130,9 +130,12 @@ export async function geminiGenerate(opts: {
   maxTokens?: number;
   /** enable Google Search grounding (for digests/current info) */
   search?: boolean;
+  /** override the model (e.g. a lighter utility model) */
+  model?: string;
 }): Promise<string> {
   const cfg = await getLlmConfig();
-  const url = `${nativeBase(cfg.baseURL)}models/${cfg.chatModel}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
+  const model = opts.model || cfg.chatModel;
+  const url = `${nativeBase(cfg.baseURL)}models/${model}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const generationConfig: any = {
     temperature: opts.temperature ?? 0.4,

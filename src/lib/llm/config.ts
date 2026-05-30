@@ -12,6 +12,8 @@ export type LlmConfig = {
   baseURL: string;
   apiKey: string;
   chatModel: string;
+  /** lighter model for background/JSON work (separate free-tier quota bucket) */
+  utilityModel: string;
   embedModel: string;
 };
 
@@ -31,10 +33,15 @@ export async function getLlmConfig(): Promise<LlmConfig> {
     process.env.GEMINI_CHAT_MODEL ||
     "gemini-2.5-flash";
 
+  const utilityModel =
+    process.env.LLM_UTILITY_MODEL ||
+    (await getSetting("llm_utility_model")) ||
+    "gemini-2.0-flash-lite";
+
   const embedModel =
     process.env.LLM_EMBED_MODEL ||
     (await getSetting("llm_embed_model")) ||
     "gemini-embedding-001";
 
-  return { baseURL, apiKey, chatModel, embedModel };
+  return { baseURL, apiKey, chatModel, utilityModel, embedModel };
 }
