@@ -268,7 +268,7 @@ export function ChatWindow({
     if (streaming) return;
     const lastIdx = messages.length - 1;
     const last = messages[lastIdx];
-    if (!last || last.role !== "assistant" || last.id.startsWith("draft-")) return;
+    if (!last || last.role !== "assistant") return;
     setMessages((m) => m.map((x, i) => (i === lastIdx ? { ...x, content: "" } : x)));
     setStreaming(true);
     try {
@@ -277,7 +277,7 @@ export function ChatWindow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId }),
       });
-      if (!res.ok || !res.body) throw new Error(t("مش قادرة أعيد، جرّب تاني", "Couldn't regenerate, try again"));
+      if (!res.ok || !res.body) throw new Error("regen failed");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let acc = "";
@@ -287,14 +287,12 @@ export function ChatWindow({
         acc += decoder.decode(value, { stream: true });
         setMessages((m) => m.map((x, i) => (i === lastIdx ? { ...x, content: acc } : x)));
       }
-      speak(acc);
-      router.refresh();
-    } catch (e) {
-      setMessages((m) =>
-        m.map((x, i) => (i === lastIdx ? { ...x, content: `⚠️ ${(e as Error).message}` } : x)),
-      );
+      if (acc.trim()) speak(acc);
+    } catch {
+      /* keep the old reply; the refresh below restores server truth */
     } finally {
       setStreaming(false);
+      router.refresh();
     }
   }
 

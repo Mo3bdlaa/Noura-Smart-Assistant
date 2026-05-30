@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const conv = await getConversation(ctx, conversationId);
   if (!conv) return NextResponse.json({ error: "المحادثة مش موجودة" }, { status: 404 });
 
-  // Look at the tail: delete the last assistant reply, find the last user turn.
+  // Tail of the conversation: the last assistant reply (to replace) + last user turn.
   const tail = await db
     .select({ id: messages.id, role: messages.role, content: messages.content, meta: messages.meta })
     .from(messages)
@@ -44,9 +44,6 @@ export async function POST(req: Request) {
   const lastAssistant = tail.find((m) => m.role === "assistant");
   const lastUser = tail.find((m) => m.role === "user");
   if (!lastUser) return NextResponse.json({ error: "مفيش رسالة تعيدي عليها" }, { status: 400 });
-  if (lastAssistant) {
-    await db.delete(messages).where(eq(messages.id, lastAssistant.id));
-  }
 
   const images = (lastUser.meta as { images?: string[] } | null)?.images;
 
@@ -62,12 +59,17 @@ export async function POST(req: Request) {
     query: lastUser.content,
   }).catch(() => []);
 
-  const [history, memories, mood, locale] = await Promise.all([
-    recentHistory(conversationId), // now ends at the last user turn
+  const [rawHistory, memories, mood, locale] = await Promise.all([
+    recentHistory(conversationId),
     safeRetrieve,
     readMood(ctx.assistantId),
     getLocale(),
   ]);
+
+  // Drop trailing assistant turn(s) so the prompt ends at the user turn.
+  // We only delete the old reply from the DB once a new one succeeds.
+  const history = [...rawHistory];
+  while (history.length && history[history.length - 1]!.role === "assistant") history.pop();
 
   const system = assembleSystem({
     assistantName: assistant?.name ?? "نورا",
@@ -95,6 +97,9 @@ export async function POST(req: Request) {
         console.error("regenerate stream error", e);
       } finally {
         if (full.trim()) {
+          if (lastAssistant) {
+            await db.delete(messages).where(eq(messages.id, lastAssistant.id));
+          }
           await saveMessage({
             conversationId,
             userId: ctx!.userId,
@@ -102,6 +107,7 @@ export async function POST(req: Request) {
             content: full,
           });
         }
+        // On empty/failure the old reply is kept; the client refreshes to restore it.
         controller.close();
       }
     },
