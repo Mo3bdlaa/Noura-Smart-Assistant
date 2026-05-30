@@ -54,7 +54,14 @@ export async function generateReminderInitiatives(userId: string, assistantId: s
         priority: 3,
         payload: { title: r.title, kind: r.kind },
       });
-      await db.update(reminders).set({ firedAt: now }).where(eq(reminders.id, r.id));
+      if (r.recurrence === "yearly") {
+        // Roll a recurring date forward to its next future occurrence (stays active).
+        const next = new Date(r.dueAt);
+        while (next <= now) next.setFullYear(next.getFullYear() + 1);
+        await db.update(reminders).set({ dueAt: next }).where(eq(reminders.id, r.id));
+      } else {
+        await db.update(reminders).set({ firedAt: now }).where(eq(reminders.id, r.id));
+      }
     }
   }
 }

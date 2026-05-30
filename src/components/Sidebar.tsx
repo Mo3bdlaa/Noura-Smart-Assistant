@@ -3,6 +3,7 @@
 import { useRouter, useParams } from "next/navigation";
 import { useState } from "react";
 import {
+  Bell,
   Brain,
   Crown,
   Glasses,
@@ -152,6 +153,7 @@ export function Sidebar(props: {
       {/* footer */}
       <div className="p-2 pb-safe border-t border-border space-y-0.5">
         <FooterLink icon={<Brain className="size-[18px]" />} label="الذاكرة" onClick={() => go("/memories")} />
+        <FooterLink icon={<Bell className="size-[18px]" />} label="التذكيرات" onClick={() => go("/reminders")} />
         <FooterLink icon={<Settings className="size-[18px]" />} label="الإعدادات" onClick={() => go("/settings")} />
         {props.isAdmin && (
           <FooterLink icon={<Crown className="size-[18px]" />} label="لوحة الأدمن" onClick={() => go("/admin")} />
