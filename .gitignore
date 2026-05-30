@@ -33,3 +33,4 @@ yarn-error.log*
 
 # drizzle local artifacts
 /drizzle/meta
+.vercel

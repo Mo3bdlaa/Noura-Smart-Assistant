@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.7.0",
+    "@neondatabase/serverless": "^0.10.4",
     "@node-rs/argon2": "^2.0.2",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.2.0",
