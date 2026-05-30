@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AuthShell } from "@/components/AuthShell";
+import { Button } from "@/components/ui/Button";
+import { Input, Field } from "@/components/ui/Input";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +26,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "خطأ");
+        setError(data.error ?? "في حاجة غلط");
         return;
       }
       router.push("/chat");
@@ -34,43 +37,46 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <form onSubmit={submit} className="w-full max-w-sm bg-surface border border-border rounded-3xl p-8 space-y-4">
-        <div className="text-center mb-2">
-          <h1 className="text-3xl font-extrabold text-ink">نورا</h1>
-          <p className="text-sm text-muted mt-1">أهلًا، اشتقتلك 🙂 ادخل نكمّل كلامنا.</p>
-        </div>
-        {error && <div className="text-sm bg-red-500/10 text-red-700 rounded-lg px-3 py-2">{error}</div>}
-        <input
-          type="email"
-          required
-          placeholder="الإيميل"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink outline-none focus:border-amber"
-        />
-        <input
-          type="password"
-          required
-          placeholder="الباسورد"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink outline-none focus:border-amber"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-xl bg-amber text-bg font-bold py-3 disabled:opacity-50"
-        >
-          {busy ? "..." : "دخول"}
-        </button>
-        <p className="text-center text-sm text-muted">
+    <AuthShell
+      title="أهلًا، اشتقتلك 🙂"
+      subtitle="ادخل نكمّل كلامنا من حيث ما وقفنا."
+      footer={
+        <>
           لسه ماعندكش حساب؟{" "}
-          <Link href="/register" className="text-accent font-semibold">
+          <Link href="/register" className="text-accent font-semibold hover:underline">
             اعمل واحد
           </Link>
-        </p>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {error && (
+          <div className="text-sm bg-danger-soft text-danger rounded-xl px-3 py-2.5">{error}</div>
+        )}
+        <Field label="الإيميل">
+          <Input
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="[email protected]"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </Field>
+        <Field label="الباسورد">
+          <Input
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
+        <Button type="submit" block size="lg" loading={busy}>
+          دخول
+        </Button>
       </form>
-    </div>
+    </AuthShell>
   );
 }

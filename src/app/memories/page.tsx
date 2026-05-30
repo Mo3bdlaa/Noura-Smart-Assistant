@@ -1,7 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Brain, Trash2 } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Chip, EmptyState } from "@/components/ui/Card";
+import { IconButton } from "@/components/ui/IconButton";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useToast } from "@/components/ui/Toast";
 
 type Mem = { id: string; type: string; content: string; importance: number; createdAt: string };
 
@@ -15,6 +22,8 @@ const TYPE_AR: Record<string, string> = {
 };
 
 export default function MemoriesPage() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [mems, setMems] = useState<Mem[]>([]);
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(true);
@@ -31,6 +40,8 @@ export default function MemoriesPage() {
   }, []);
 
   async function del(id: string) {
+    const ok = await confirm({ title: "تشيل الذكرى دي؟", confirmText: "شيل", danger: true });
+    if (!ok) return;
     await fetch(`/api/memories/${id}`, { method: "DELETE" });
     setMems((m) => m.filter((x) => x.id !== id));
   }
@@ -43,43 +54,56 @@ export default function MemoriesPage() {
       body: JSON.stringify({ topic }),
     });
     const data = await res.json();
-    alert(`نسيت ${data.forgotten ?? 0} حاجة عن "${topic}".`);
+    toast(`نسيت ${data.forgotten ?? 0} حاجة عن "${topic}".`, "success");
     setTopic("");
     load();
   }
 
   return (
-    <div className="min-h-screen max-w-2xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-ink">🧠 اللي نورا فاكراه عنك</h1>
-        <Link href="/chat" className="text-sm text-accent">← رجوع</Link>
-      </div>
+    <PageShell title="الذاكرة" icon={<Brain className="size-5" />}>
+      <p className="text-sm text-muted mb-4">اللي مساعدتك فاكراه عنك — تقدر تشيل أي حاجة في أي وقت.</p>
 
       <div className="flex gap-2 mb-6">
-        <input
+        <Input
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && forget()}
           placeholder="انسي كل حاجة عن... (موضوع)"
-          className="flex-1 rounded-xl bg-surface border border-border px-4 py-2 text-ink outline-none focus:border-amber"
+          className="h-11"
         />
-        <button onClick={forget} className="rounded-xl bg-brown/20 text-ink px-4 py-2">انسي</button>
+        <Button variant="outline" onClick={forget}>
+          انسي
+        </Button>
       </div>
 
       {loading ? (
-        <p className="text-muted">بحمّل...</p>
+        <ul className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="h-16 rounded-2xl bg-surface border border-border animate-pulse" />
+          ))}
+        </ul>
       ) : mems.length === 0 ? (
-        <p className="text-muted">لسه مفيش ذكريات.</p>
+        <EmptyState icon={<Brain className="size-6" />} title="لسه مفيش ذكريات">
+          كل ما تتكلموا أكتر، هتفتكر أكتر.
+        </EmptyState>
       ) : (
         <ul className="space-y-2">
           {mems.map((m) => (
-            <li key={m.id} className="group flex items-start gap-3 bg-surface border border-border rounded-xl px-4 py-3">
-              <span className="text-xs bg-amber/20 text-ink rounded-full px-2 py-0.5 mt-0.5">{TYPE_AR[m.type] ?? m.type}</span>
-              <span className="flex-1 text-ink text-sm">{m.content}</span>
-              <button onClick={() => del(m.id)} className="opacity-0 group-hover:opacity-100 text-muted hover:text-red-600 text-xs">✕</button>
+            <li
+              key={m.id}
+              className="group flex items-start gap-3 bg-surface border border-border rounded-2xl px-4 py-3 shadow-soft animate-fade-in"
+            >
+              <Chip tone="accent" className="mt-0.5 shrink-0">
+                {TYPE_AR[m.type] ?? m.type}
+              </Chip>
+              <span className="flex-1 text-ink text-sm leading-relaxed">{m.content}</span>
+              <IconButton size="sm" subtle onClick={() => del(m.id)} aria-label="حذف">
+                <Trash2 className="size-4" />
+              </IconButton>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </PageShell>
   );
 }

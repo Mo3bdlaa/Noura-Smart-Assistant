@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="orb" cx="38%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="#f6d678"/>
+      <stop offset="42%" stop-color="#e9a93f"/>
+      <stop offset="78%" stop-color="#c07e2c"/>
+      <stop offset="100%" stop-color="#3f7d4f"/>
+    </radialGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff7e6"/>
+      <stop offset="100%" stop-color="#f7e3ad"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#241a10"/>
+  <circle cx="256" cy="256" r="168" fill="url(#orb)"/>
+  <circle cx="256" cy="256" r="168" fill="none" stroke="#fff" stroke-opacity="0.12" stroke-width="2"/>
+  <!-- sparkle -->
+  <path d="M256 150c8 60 36 88 96 96-60 8-88 36-96 96-8-60-36-88-96-96 60-8 88-36 96-96z"
+        fill="url(#spark)" fill-opacity="0.95"/>
+  <circle cx="350" cy="168" r="10" fill="#fff7e6" fill-opacity="0.9"/>
+  <circle cx="168" cy="350" r="7" fill="#fff7e6" fill-opacity="0.8"/>
+</svg>

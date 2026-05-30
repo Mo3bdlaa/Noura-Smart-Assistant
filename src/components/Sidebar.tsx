@@ -2,24 +2,50 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useState } from "react";
+import {
+  Brain,
+  Crown,
+  Glasses,
+  LogOut,
+  MessageCirclePlus,
+  Pin,
+  Settings,
+  Trash2,
+} from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
+import { IconButton } from "@/components/ui/IconButton";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/cn";
 
-type Conv = { id: string; type: "main" | "side" | "incognito"; title: string | null };
+export type Conv = { id: string; type: "main" | "side" | "incognito"; title: string | null };
+type MoodKind = "happy" | "calm" | "upset";
 
-const TYPE_META: Record<Conv["type"], { icon: string; label: string }> = {
-  main: { icon: "📌", label: "الرئيسية" },
-  side: { icon: "💬", label: "محادثة جانبية" },
-  incognito: { icon: "🕶️", label: "تخيّلي" },
+const TYPE_META: Record<Conv["type"], { Icon: typeof Pin; label: string }> = {
+  main: { Icon: Pin, label: "الرئيسية" },
+  side: { Icon: MessageCirclePlus, label: "محادثة جانبية" },
+  incognito: { Icon: Glasses, label: "تخيّلي" },
 };
 
 export function Sidebar(props: {
   assistantName: string;
+  mood: MoodKind;
+  moodLabel: string;
   isAdmin: boolean;
   conversations: Conv[];
+  onNavigate?: () => void;
 }) {
   const router = useRouter();
   const params = useParams<{ conversationId?: string }>();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [convs, setConvs] = useState<Conv[]>(props.conversations);
   const [busy, setBusy] = useState(false);
+
+  const go = (href: string) => {
+    props.onNavigate?.();
+    router.push(href);
+  };
 
   async function create(type: "side" | "incognito") {
     setBusy(true);
@@ -32,7 +58,9 @@ export function Sidebar(props: {
       const data = await res.json();
       if (data.conversation) {
         setConvs((c) => [{ id: data.conversation.id, type, title: null }, ...c]);
-        router.push(`/chat/${data.conversation.id}`);
+        go(`/chat/${data.conversation.id}`);
+      } else {
+        toast("مش قادرة أعمل المحادثة دلوقتي", "error");
       }
     } finally {
       setBusy(false);
@@ -40,10 +68,16 @@ export function Sidebar(props: {
   }
 
   async function remove(id: string) {
-    if (!confirm("تمسح المحادثة دي؟")) return;
+    const ok = await confirm({
+      title: "تمسح المحادثة دي؟",
+      body: "هتتشال خالص من هنا.",
+      confirmText: "امسح",
+      danger: true,
+    });
+    if (!ok) return;
     await fetch(`/api/conversations/${id}`, { method: "DELETE" });
     setConvs((c) => c.filter((x) => x.id !== id));
-    if (params.conversationId === id) router.push("/chat");
+    if (params.conversationId === id) go("/chat");
   }
 
   async function logout() {
@@ -56,56 +90,94 @@ export function Sidebar(props: {
   const others = convs.filter((c) => c.type !== "main");
 
   return (
-    <aside className="w-72 shrink-0 h-full flex flex-col bg-surface border-l border-border">
-      <div className="p-4 border-b border-border">
-        <div className="text-lg font-bold text-ink">{props.assistantName}</div>
-        <div className="text-xs text-muted">مساعدتك اللي بتفتكر وبتحس</div>
+    <aside className="w-72 max-w-[82vw] h-dvh flex flex-col bg-surface border-l border-border">
+      {/* header */}
+      <div className="p-4 pt-safe flex items-center gap-3 border-b border-border">
+        <Avatar name={props.assistantName} size="lg" mood={props.mood} />
+        <div className="min-w-0">
+          <div className="text-lg font-extrabold text-ink leading-tight truncate">
+            {props.assistantName}
+          </div>
+          <div className="text-xs text-muted leading-tight truncate">{props.moodLabel}</div>
+        </div>
       </div>
 
-      <div className="p-3 flex gap-2">
+      {/* new conversation */}
+      <div className="p-3 grid grid-cols-2 gap-2">
         <button
           disabled={busy}
           onClick={() => create("side")}
-          className="flex-1 text-sm rounded-lg bg-amber/15 text-ink px-3 py-2 hover:bg-amber/25 transition disabled:opacity-50"
+          className="flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl bg-accent-soft text-ink px-3 py-2.5 hover:brightness-95 transition-theme disabled:opacity-50"
         >
-          + جانبية
+          <MessageCirclePlus className="size-4" /> جانبية
         </button>
         <button
           disabled={busy}
           onClick={() => create("incognito")}
-          className="flex-1 text-sm rounded-lg bg-brown/15 text-ink px-3 py-2 hover:bg-brown/25 transition disabled:opacity-50"
+          className="flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl bg-elevated text-ink px-3 py-2.5 hover:brightness-95 transition-theme disabled:opacity-50"
         >
-          🕶️ تخيّلي
+          <Glasses className="size-4" /> تخيّلي
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
-        {main && <ConvItem conv={main} active={params.conversationId === main.id} onOpen={(id) => router.push(`/chat/${id}`)} />}
+      {/* conversations */}
+      <nav className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
+        {main && (
+          <ConvItem
+            conv={main}
+            active={params.conversationId === main.id}
+            onOpen={(id) => go(`/chat/${id}`)}
+          />
+        )}
+        {others.length > 0 && (
+          <div className="px-3 pt-3 pb-1 text-[11px] font-semibold text-faint">المحادثات</div>
+        )}
         {others.map((c) => (
           <ConvItem
             key={c.id}
             conv={c}
             active={params.conversationId === c.id}
-            onOpen={(id) => router.push(`/chat/${id}`)}
+            onOpen={(id) => go(`/chat/${id}`)}
             onDelete={() => remove(c.id)}
           />
         ))}
       </nav>
 
-      <div className="p-3 border-t border-border space-y-1 text-sm">
-        <button onClick={() => router.push("/memories")} className="w-full text-right px-3 py-2 rounded-lg hover:bg-elevated text-ink">
-          🧠 الذاكرة
-        </button>
+      {/* footer */}
+      <div className="p-2 pb-safe border-t border-border space-y-0.5">
+        <FooterLink icon={<Brain className="size-[18px]" />} label="الذاكرة" onClick={() => go("/memories")} />
+        <FooterLink icon={<Settings className="size-[18px]" />} label="الإعدادات" onClick={() => go("/settings")} />
         {props.isAdmin && (
-          <button onClick={() => router.push("/admin")} className="w-full text-right px-3 py-2 rounded-lg hover:bg-elevated text-ink">
-            👑 لوحة الأدمن
-          </button>
+          <FooterLink icon={<Crown className="size-[18px]" />} label="لوحة الأدمن" onClick={() => go("/admin")} />
         )}
-        <button onClick={logout} className="w-full text-right px-3 py-2 rounded-lg hover:bg-elevated text-muted">
-          خروج
-        </button>
+        <FooterLink icon={<LogOut className="size-[18px]" />} label="خروج" muted onClick={logout} />
       </div>
     </aside>
+  );
+}
+
+function FooterLink({
+  icon,
+  label,
+  onClick,
+  muted,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  muted?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-theme hover:bg-elevated",
+        muted ? "text-muted" : "text-ink",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
@@ -115,27 +187,29 @@ function ConvItem(props: {
   onOpen: (id: string) => void;
   onDelete?: () => void;
 }) {
-  const meta = TYPE_META[props.conv.type];
+  const { Icon, label } = TYPE_META[props.conv.type];
   return (
     <div
-      className={`group flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition ${
-        props.active ? "bg-amber/20 text-ink" : "hover:bg-elevated text-ink/90"
-      }`}
+      className={cn(
+        "group flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-theme",
+        props.active ? "bg-accent-soft text-ink" : "hover:bg-elevated text-ink/90",
+      )}
       onClick={() => props.onOpen(props.conv.id)}
     >
-      <span>{meta.icon}</span>
-      <span className="flex-1 text-sm truncate">{props.conv.title || meta.label}</span>
+      <Icon className={cn("size-4 shrink-0", props.active ? "text-accent" : "text-muted")} />
+      <span className="flex-1 text-sm truncate">{props.conv.title || label}</span>
       {props.onDelete && (
-        <button
+        <IconButton
+          size="sm"
+          subtle
           onClick={(e) => {
             e.stopPropagation();
             props.onDelete?.();
           }}
-          className="opacity-0 group-hover:opacity-100 text-muted hover:text-ink text-xs"
           aria-label="حذف"
         >
-          ✕
-        </button>
+          <Trash2 className="size-4" />
+        </IconButton>
       )}
     </div>
   );

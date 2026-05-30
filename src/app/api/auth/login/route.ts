@@ -5,7 +5,14 @@ import { db } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
 import { startSession } from "@/lib/auth/login";
-import { deviceFingerprint, isTrustedDevice, logLoginAttempt } from "@/lib/auth/devices";
+import {
+  deviceFingerprint,
+  isTrustedDevice,
+  logLoginAttempt,
+  recentFailedAttempts,
+} from "@/lib/auth/devices";
+
+const MAX_FAILED = 8; // failed attempts per email/IP within the window before throttling
 
 const Body = z.object({
   email: z.string().email(),
@@ -18,6 +25,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "بيانات ناقصة" }, { status: 400 });
   }
   const email = parsed.data.email.toLowerCase().trim();
+
+  // Brute-force guard: throttle once too many recent failures pile up.
+  if ((await recentFailedAttempts(email, req.headers)) >= MAX_FAILED) {
+    return NextResponse.json(
+      { error: "محاولات كتير أوي. استنى شوية وجرّب تاني." },
+      { status: 429 },
+    );
+  }
 
   const [user] = await db
     .select()

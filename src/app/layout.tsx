@@ -1,21 +1,43 @@
 import type { CSSProperties } from "react";
 import type { Metadata, Viewport } from "next";
+import { Cairo } from "next/font/google";
 import "./globals.css";
 import { currentUser } from "@/lib/auth/guard";
 import { tenantForUser } from "@/lib/db/tenant";
 import { readMood } from "@/lib/mood/state";
-import { computeTheme, type ThemeVars } from "@/lib/theme/compute";
+import { computeTheme, themeColor, type ThemeVars } from "@/lib/theme/compute";
 import { timeContext } from "@/lib/time/awareness";
+import { Providers } from "@/components/Providers";
+import { ThemeColorSync } from "@/components/ThemeColorSync";
+import { ServiceWorker } from "@/components/ServiceWorker";
+
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  variable: "--font-cairo",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "نورا",
-  description: "نورا — مساعدتك اللي بتفتكر وبتحس",
+  title: "نورا — مساعدتك اللي بتفتكر وبتحس",
+  description: "مساعدة ذكية ليها شخصية ومزاج وذاكرة، بتتكلم معاك بالمصري.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "نورا",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "نورا" },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: [{ url: "/icon-192.png" }],
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#caa14a",
+  themeColor: "#f4ead2",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 const DEFAULT_MOOD = {
@@ -46,8 +68,15 @@ async function themeVars(): Promise<ThemeVars> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const vars = await themeVars();
   return (
-    <html lang="ar" dir="rtl" style={vars as CSSProperties}>
-      <body className="font-sans antialiased min-h-screen">{children}</body>
+    <html lang="ar" dir="rtl" className={cairo.variable} style={vars as CSSProperties}>
+      <head>
+        <meta name="theme-color" content={themeColor(vars)} />
+      </head>
+      <body className="font-sans antialiased min-h-dvh transition-theme">
+        <ThemeColorSync />
+        <ServiceWorker />
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AuthShell } from "@/components/AuthShell";
+import { Button } from "@/components/ui/Button";
+import { Input, Field } from "@/components/ui/Input";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,7 +14,8 @@ export default function RegisterPage() {
   const [busy, setBusy] = useState(false);
 
   function set(k: keyof typeof form) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+    return (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value }));
   }
 
   async function submit(e: React.FormEvent) {
@@ -26,7 +30,7 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "خطأ");
+        setError(data.error ?? "في حاجة غلط");
         return;
       }
       router.push("/chat");
@@ -37,28 +41,38 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <form onSubmit={submit} className="w-full max-w-sm bg-surface border border-border rounded-3xl p-8 space-y-4">
-        <div className="text-center mb-2">
-          <h1 className="text-2xl font-extrabold text-ink">اعمل حساب جديد</h1>
-          <p className="text-sm text-muted mt-1">اختار اسم لمساعدك الخاص بيك.</p>
-        </div>
-        {error && <div className="text-sm bg-red-500/10 text-red-700 rounded-lg px-3 py-2">{error}</div>}
-        <input required placeholder="اسمك" value={form.displayName} onChange={set("displayName")}
-          className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink outline-none focus:border-amber" />
-        <input type="email" required placeholder="الإيميل" value={form.email} onChange={set("email")}
-          className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink outline-none focus:border-amber" />
-        <input type="password" required placeholder="باسورد (٨ حروف على الأقل)" value={form.password} onChange={set("password")}
-          className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink outline-none focus:border-amber" />
-        <input required placeholder='اسم مساعدك (مش "نورا" 😏)' value={form.assistantName} onChange={set("assistantName")}
-          className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-ink outline-none focus:border-amber" />
-        <button type="submit" disabled={busy} className="w-full rounded-xl bg-amber text-bg font-bold py-3 disabled:opacity-50">
-          {busy ? "..." : "يلا نبدأ"}
-        </button>
-        <p className="text-center text-sm text-muted">
-          عندك حساب؟ <Link href="/login" className="text-accent font-semibold">ادخل</Link>
-        </p>
+    <AuthShell
+      title="اعمل حساب جديد"
+      subtitle="اختار اسم لمساعدك الخاص بيك، وابدأ علاقتكم."
+      footer={
+        <>
+          عندك حساب؟{" "}
+          <Link href="/login" className="text-accent font-semibold hover:underline">
+            ادخل
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {error && (
+          <div className="text-sm bg-danger-soft text-danger rounded-xl px-3 py-2.5">{error}</div>
+        )}
+        <Field label="اسمك">
+          <Input required placeholder="مثلاً: محمد" value={form.displayName} onChange={set("displayName")} />
+        </Field>
+        <Field label="الإيميل">
+          <Input type="email" required autoComplete="email" placeholder="[email protected]" value={form.email} onChange={set("email")} />
+        </Field>
+        <Field label="الباسورد" hint="٨ حروف على الأقل">
+          <Input type="password" required autoComplete="new-password" placeholder="••••••••" value={form.password} onChange={set("password")} />
+        </Field>
+        <Field label="اسم مساعدك" hint='أي اسم يعجبك (مش "نورا" 😏)'>
+          <Input required placeholder="مثلاً: سلمى، ليلى..." value={form.assistantName} onChange={set("assistantName")} />
+        </Field>
+        <Button type="submit" block size="lg" loading={busy}>
+          يلا نبدأ
+        </Button>
       </form>
-    </div>
+    </AuthShell>
   );
 }

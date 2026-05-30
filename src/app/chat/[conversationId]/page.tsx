@@ -1,8 +1,18 @@
 import { notFound, redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
 import { currentUser } from "@/lib/auth/guard";
 import { tenantForUser } from "@/lib/db/tenant";
+import { db } from "@/lib/db/client";
+import { assistants } from "@/lib/db/schema";
 import { getConversation, listMessages } from "@/lib/chat/store";
+import { readMood, type MoodSnapshot } from "@/lib/mood/state";
 import { ChatWindow } from "@/components/ChatWindow";
+
+function moodKind(m: MoodSnapshot): "happy" | "calm" | "upset" {
+  if (m.annoyance > 0.35) return "upset";
+  if (m.happiness > 0.65) return "happy";
+  return "calm";
+}
 
 export default async function ConversationPage({
   params,
@@ -17,12 +27,20 @@ export default async function ConversationPage({
   const conv = await getConversation(ctx, conversationId);
   if (!conv) notFound();
 
+  const [assistant] = await db
+    .select({ name: assistants.name })
+    .from(assistants)
+    .where(eq(assistants.id, ctx.assistantId))
+    .limit(1);
+  const mood = await readMood(ctx.assistantId);
   const msgs = await listMessages(ctx, conversationId);
 
   return (
     <ChatWindow
       conversationId={conv.id}
       conversationType={conv.type}
+      assistantName={assistant?.name ?? "نورا"}
+      assistantMood={moodKind(mood)}
       initialMessages={msgs
         .filter((m) => m.role !== "system")
         .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content }))}

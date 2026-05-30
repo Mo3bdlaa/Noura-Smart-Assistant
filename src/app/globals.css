@@ -2,25 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Default (daytime, neutral mood) palette — overridden live on <html> by the
-   theme engine. Values are HSL components used via hsl(var(--token)). */
+/* ============================================================================
+   Noura Design System — base tokens & primitives.
+   Colour tokens are HSL components consumed via hsl(var(--token)). The theme
+   engine (src/lib/theme/compute.ts) overrides them live on <html> per the
+   assistant's mood + time of day. The defaults below are the light, neutral-
+   mood, daytime palette (used as the pre-hydration fallback). See
+   DESIGN_SYSTEM.md.
+   ========================================================================== */
 :root {
-  --bg: 40 48% 96%;
-  --surface: 38 44% 92%;
-  --elevated: 36 40% 87%;
-  --ink: 25 34% 18%;
-  --muted: 30 20% 44%;
-  --amber: 34 78% 52%;
-  --gold: 45 80% 50%;
-  --brown: 25 45% 30%;
+  /* surfaces */
+  --bg: 40 46% 96%;
+  --surface: 38 42% 93%;
+  --elevated: 36 38% 88%;
+  --overlay: 26 38% 16%;
+  /* text */
+  --ink: 25 32% 17%;
+  --muted: 30 16% 42%;
+  --faint: 32 14% 58%;
+  --on-accent: 30 45% 13%;
+  /* warm brand */
+  --amber: 34 80% 52%;
+  --gold: 44 82% 50%;
+  --brown: 25 42% 30%;
   --cream: 40 50% 94%;
-  --accent: 142 45% 40%;
-  --border: 35 30% 82%;
-  --font-noura: "Cairo", "Segoe UI", Tahoma, system-ui, sans-serif;
+  /* accent (her eyes) */
+  --accent: 142 46% 38%;
+  --accent-soft: 142 42% 91%;
+  /* lines */
+  --border: 35 26% 82%;
+  --border-strong: 34 22% 71%;
+  --ring: 142 46% 46%;
+  /* feedback */
+  --danger: 4 70% 47%;
+  --danger-soft: 6 72% 93%;
+  --success: 146 46% 36%;
+  --success-soft: 146 44% 91%;
+  /* effects */
+  --shadow: 25 42% 22%;
+
+  /* static design tokens */
+  --radius: 0.95rem;
+  --font-noura: var(--font-cairo), "Segoe UI", Tahoma, system-ui, sans-serif;
 }
 
 html {
   color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -28,10 +56,64 @@ body {
   color: hsl(var(--ink));
   /* smooth the live theme shifts so mood changes feel gentle, not jarring */
   transition: background-color 1.2s ease, color 1.2s ease;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* Thin, warm scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-color: hsl(var(--border-strong)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--border-strong) / 0.7);
+  border-radius: 9999px;
+}
+
+/* Accessible focus ring everywhere (keyboard only) */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+::selection {
+  background: hsl(var(--accent) / 0.25);
+  color: hsl(var(--ink));
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer utilities {
+  /* iOS / notch safe areas */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .h-dvh {
+    height: 100dvh;
+  }
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+  /* subtle warm radial glow used behind hero marks */
+  .bg-aura {
+    background:
+      radial-gradient(60% 50% at 50% 0%, hsl(var(--amber) / 0.16), transparent 70%),
+      radial-gradient(40% 40% at 100% 100%, hsl(var(--accent) / 0.1), transparent 70%);
+  }
 }

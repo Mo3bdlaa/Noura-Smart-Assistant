@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, gt, or } from "drizzle-orm";
 import { UAParser } from "ua-parser-js";
 import { db } from "@/lib/db/client";
 import { loginAttempts, trustedDevices } from "@/lib/db/schema";
@@ -44,6 +44,30 @@ export async function logLoginAttempt(opts: {
     deviceFingerprint: deviceFingerprint(opts.headers),
     userAgent: opts.headers.get("user-agent") ?? null,
   });
+}
+
+/**
+ * Brute-force guard: number of failed login attempts from this IP or for this
+ * email within the window. The login route blocks (429) past a threshold.
+ */
+export async function recentFailedAttempts(
+  email: string,
+  headers: Headers,
+  windowMs = 10 * 60 * 1000,
+): Promise<number> {
+  const since = new Date(Date.now() - windowMs);
+  const ip = clientIp(headers);
+  const [row] = await db
+    .select({ n: count() })
+    .from(loginAttempts)
+    .where(
+      and(
+        eq(loginAttempts.success, false),
+        gt(loginAttempts.createdAt, since),
+        or(eq(loginAttempts.emailTried, email), eq(loginAttempts.ip, ip)),
+      ),
+    );
+  return row?.n ?? 0;
 }
 
 /** Is this device already trusted for the user? */
