@@ -26,6 +26,7 @@ import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 import { getLocale } from "@/lib/i18n";
+import { friendlyError } from "@/lib/llm/errors";
 import { detectTask } from "@/lib/tasks/detect";
 import { createTask } from "@/lib/tasks/store";
 import { runDueTasks } from "@/lib/tasks/run";
@@ -184,7 +185,7 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error("stream error", e);
         if (!full) {
-          const msg = "⚠️ حصلت لخبطة بسيطة — اضغط زرار الإعادة 🔄";
+          const msg = friendlyError(e, user!.locale);
           full = msg;
           controller.enqueue(encoder.encode(msg));
         }

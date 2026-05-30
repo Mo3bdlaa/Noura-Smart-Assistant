@@ -293,8 +293,16 @@ export function ChatWindow({
         setMessages((m) => m.map((x, i) => (i === targetIdx ? { ...x, content: acc } : x)));
       }
       if (acc.trim()) speak(acc);
+      else
+        toast(
+          t(
+            "الموديل مزحوم دلوقتي (الحد المجاني) — استنى دقيقة وجرّب تاني",
+            "The model is busy (free-tier limit) — wait a minute and try again",
+          ),
+          "error",
+        );
     } catch {
-      /* keep the old reply; the refresh below restores server truth */
+      toast(t("مش قادرة أعيد دلوقتي، جرّب تاني", "Couldn't regenerate now, try again"), "error");
     } finally {
       setStreaming(false);
       router.refresh();
