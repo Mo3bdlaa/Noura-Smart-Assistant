@@ -10,6 +10,7 @@ import { timeContext } from "@/lib/time/awareness";
 import { Providers } from "@/components/Providers";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -75,7 +76,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="font-sans antialiased min-h-dvh transition-theme">
         <ThemeColorSync />
         <ServiceWorker />
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <InstallPrompt />
+        </Providers>
       </body>
     </html>
   );
