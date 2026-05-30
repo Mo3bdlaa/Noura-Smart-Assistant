@@ -64,7 +64,7 @@ export async function* geminiStream(opts: {
 }): AsyncGenerator<string> {
   const cfg = await getLlmConfig();
   const url = `${nativeBase(cfg.baseURL)}models/${cfg.chatModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(cfg.apiKey)}`;
-  const body = {
+  const baseBody = {
     systemInstruction: { parts: [{ text: opts.system }] },
     contents: toContents(opts.history, opts.images),
     safetySettings: SAFETY,
@@ -75,15 +75,27 @@ export async function* geminiStream(opts: {
     },
   };
 
-  const res = await withLlm(async () => {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+  const open = (withSearch: boolean) =>
+    withLlm(async () => {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // google_search lets her look things up when she needs current info.
+        body: JSON.stringify(withSearch ? { ...baseBody, tools: [{ google_search: {} }] } : baseBody),
+      });
+      if (!r.ok) throw Object.assign(new Error(`gemini ${r.status}`), { status: r.status });
+      return r;
     });
-    if (!r.ok) throw Object.assign(new Error(`gemini ${r.status}`), { status: r.status });
-    return r;
-  });
+
+  // Try with web search; if the key/tier rejects the tool (400), fall back
+  // gracefully to a normal reply so chat never breaks.
+  let res: Response;
+  try {
+    res = await open(true);
+  } catch (e) {
+    if ((e as { status?: number })?.status === 400) res = await open(false);
+    else throw e;
+  }
   if (!res.body) return;
 
   const reader = res.body.getReader();
