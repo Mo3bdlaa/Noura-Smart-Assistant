@@ -71,15 +71,18 @@ export function AppShell({
 
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 px-3 h-14 pt-safe border-b border-border bg-surface/80 backdrop-blur-md shrink-0">
-          <IconButton onClick={() => setOpen(true)} aria-label="القائمة">
-            <Menu className="size-5" />
-          </IconButton>
-          <Avatar name={assistantName} size="sm" mood={mood} />
-          <div className="min-w-0">
-            <div className="font-bold text-ink leading-tight truncate">{assistantName}</div>
-            <div className="text-[11px] text-muted leading-tight truncate">{moodLabel}</div>
+        {/* Mobile top bar — safe-area padding on the wrapper so the 56px row
+            (h-14) isn't eaten by the notch inset. */}
+        <header className="lg:hidden pt-safe border-b border-border bg-surface/80 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3 px-3 h-14">
+            <IconButton onClick={() => setOpen(true)} aria-label="القائمة">
+              <Menu className="size-5" />
+            </IconButton>
+            <Avatar name={assistantName} size="sm" mood={mood} />
+            <div className="min-w-0">
+              <div className="font-bold text-ink leading-tight truncate">{assistantName}</div>
+              <div className="text-[11px] text-muted leading-tight truncate">{moodLabel}</div>
+            </div>
           </div>
         </header>
 
