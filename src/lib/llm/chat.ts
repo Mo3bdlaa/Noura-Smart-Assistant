@@ -1,9 +1,15 @@
 import type OpenAI from "openai";
 import { getClient, withLlm } from "./client";
+import { getLlmConfig } from "./config";
+import { geminiGenerate, geminiStream } from "./gemini-native";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+
+function isGemini(baseURL: string): boolean {
+  return baseURL.includes("generativelanguage");
+}
 
 function toMessages(system: string, history: ChatTurn[], images?: string[]): Msg[] {
   const msgs: Msg[] = [{ role: "system", content: system }];
@@ -24,10 +30,30 @@ function toMessages(system: string, history: ChatTurn[], images?: string[]): Msg
   return msgs;
 }
 
+function parseJsonLoose<T>(text: string | null | undefined): T | null {
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]) as T;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 /**
  * Stream the assistant's reply token-by-token. `system` is the fully-assembled
  * persona + state + memory + directive block (src/lib/persona/assemble.ts).
  * `images` (data URLs) attach to the latest user turn for multimodal models.
+ *
+ * On Gemini we use the native backend (safety filters off + thinking off);
+ * other providers go through the OpenAI-compatible endpoint.
  */
 export async function* streamChat(opts: {
   system: string;
@@ -35,25 +61,23 @@ export async function* streamChat(opts: {
   images?: string[];
   temperature?: number;
 }): AsyncGenerator<string> {
-  const { client, config } = await getClient();
-  // Build params; for Gemini's OpenAI-compat endpoint, disable "thinking" so no
-  // internal reasoning ever leaks into the reply (and it's faster).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const params: any = {
-    model: config.chatModel,
-    messages: toMessages(opts.system, opts.history, opts.images),
-    temperature: opts.temperature ?? 0.9,
-    max_tokens: 1200,
-    stream: true,
-  };
-  if (config.baseURL.includes("generativelanguage")) {
-    params.reasoning_effort = "none";
+  const config = await getLlmConfig();
+  if (isGemini(config.baseURL)) {
+    yield* geminiStream(opts);
+    return;
   }
+
+  const { client } = await getClient();
   const stream = (await withLlm(() =>
-    client.chat.completions.create(params),
+    client.chat.completions.create({
+      model: config.chatModel,
+      messages: toMessages(opts.system, opts.history, opts.images),
+      temperature: opts.temperature ?? 0.9,
+      max_tokens: 1200,
+      stream: true,
+    }),
   )) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>;
 
-  // We only ever surface `delta.content` — never any separate reasoning channel.
   for await (const chunk of stream) {
     const text = chunk.choices?.[0]?.delta?.content;
     if (text) yield text;
@@ -67,7 +91,11 @@ export async function generateText(opts: {
   temperature?: number;
   maxTokens?: number;
 }): Promise<string> {
-  const { client, config } = await getClient();
+  const config = await getLlmConfig();
+  if (isGemini(config.baseURL)) {
+    return geminiGenerate({ ...opts });
+  }
+  const { client } = await getClient();
   const res = await withLlm(() =>
     client.chat.completions.create({
       model: config.chatModel,
@@ -88,7 +116,12 @@ export async function generateJson<T = unknown>(opts: {
   prompt: string;
   temperature?: number;
 }): Promise<T | null> {
-  const { client, config } = await getClient();
+  const config = await getLlmConfig();
+  if (isGemini(config.baseURL)) {
+    const text = await geminiGenerate({ ...opts, json: true });
+    return parseJsonLoose<T>(text);
+  }
+  const { client } = await getClient();
   const res = await withLlm(() =>
     client.chat.completions.create({
       model: config.chatModel,
@@ -100,20 +133,5 @@ export async function generateJson<T = unknown>(opts: {
       response_format: { type: "json_object" },
     }),
   );
-  const text = res.choices[0]?.message?.content;
-  if (!text) return null;
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    // some providers wrap JSON in prose/fences — salvage the first {...} block
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) {
-      try {
-        return JSON.parse(match[0]) as T;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
+  return parseJsonLoose<T>(res.choices[0]?.message?.content);
 }
