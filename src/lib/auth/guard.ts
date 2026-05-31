@@ -41,7 +41,9 @@ export async function currentUser(): Promise<AuthedUser | null> {
     )
     .limit(1);
 
-  return row ?? null;
+  // A locked account is treated as signed-out everywhere (admin can lock users).
+  if (!row || row.isLocked) return null;
+  return row;
 }
 
 /** Throw-style guard for route handlers / server actions. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Crown, Send } from "lucide-react";
+import { Brain, ChevronDown, Crown, Lock, MessagesSquare, Send, Unlock, Users } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -36,6 +36,8 @@ type Row = {
   lastActive: string | null;
   profileSummary: string | null;
   profileReport: Report | null;
+  isLocked: boolean;
+  userNotes: string | null;
 };
 type AgentMsg = { id: string; question: string; answer: string | null; createdAt: string };
 
@@ -65,6 +67,16 @@ export default function AdminPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function toggleLock(u: Row) {
+    const next = !u.isLocked;
+    setRows((rs) => rs.map((r) => (r.id === u.id ? { ...r, isLocked: next } : r)));
+    await fetch(`/api/admin/user/${u.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isLocked: next }),
+    });
+  }
 
   async function ask() {
     if (!target || !question.trim()) return;
@@ -98,6 +110,13 @@ export default function AdminPage() {
 
   return (
     <PageShell title={t("لوحة الأدمن", "Admin")} icon={<Crown className="size-5" />}>
+      {/* stat cards */}
+      <div className="grid grid-cols-3 gap-2 mb-6">
+        <Stat icon={<Users className="size-4" />} label={t("مستخدمين", "Users")} value={rows.length} />
+        <Stat icon={<MessagesSquare className="size-4" />} label={t("رسائل", "Messages")} value={rows.reduce((s, r) => s + (r.userMessages || 0), 0)} />
+        <Stat icon={<Brain className="size-4" />} label={t("ذكريات", "Memories")} value={rows.reduce((s, r) => s + (r.memoryCount || 0), 0)} />
+      </div>
+
       <h2 className="text-sm font-semibold text-muted mb-2">
         {t("المستخدمين", "Users")} ({rows.length})
       </h2>
@@ -116,6 +135,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-ink truncate">{r.displayName || r.email}</span>
                     {r.role === "admin" && <Chip tone="warm">admin</Chip>}
+                    {r.isLocked && <Chip tone="danger">{t("مقفول", "locked")}</Chip>}
                   </div>
                   <div className="text-xs text-muted truncate">
                     {t("مساعد", "Assistant")}: {r.assistantName ?? "—"} · 💬 {r.userMessages} · 🧠{" "}
@@ -134,6 +154,29 @@ export default function AdminPage() {
                     <Profile report={r.profileReport} t={t} />
                   ) : (
                     <p className="text-muted">{t("لسه مفيش تحليل شخصية كفاية.", "Not enough data for a profile yet.")}</p>
+                  )}
+                  {r.userNotes && (
+                    <div className="bg-bg rounded-xl px-3 py-2">
+                      <span className="text-xs font-semibold text-muted">{t("ملاحظات المستخدم", "User notes")}: </span>
+                      <span className="text-ink">{r.userNotes}</span>
+                    </div>
+                  )}
+                  {r.role !== "admin" && (
+                    <Button
+                      size="sm"
+                      variant={r.isLocked ? "primary" : "outline"}
+                      onClick={() => toggleLock(r)}
+                    >
+                      {r.isLocked ? (
+                        <>
+                          <Unlock className="size-4" /> {t("فتح الحساب", "Unlock")}
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="size-4" /> {t("قفل الحساب", "Lock")}
+                        </>
+                      )}
+                    </Button>
                   )}
                 </div>
               )}
@@ -181,6 +224,18 @@ export default function AdminPage() {
         )}
       </ul>
     </PageShell>
+  );
+}
+
+function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+  return (
+    <Card className="p-3 text-center">
+      <div className="mx-auto mb-1 grid place-items-center size-8 rounded-xl bg-accent-soft text-accent">
+        {icon}
+      </div>
+      <div className="text-xl font-extrabold text-ink leading-none">{value}</div>
+      <div className="text-[11px] text-muted mt-0.5">{label}</div>
+    </Card>
   );
 }
 

@@ -15,7 +15,7 @@ export async function GET() {
   const rows = await db.execute(sql`
     select
       u.id, u.email, u.display_name as "displayName", u.role, u.created_at as "createdAt",
-      u.locale, u.timezone,
+      u.locale, u.timezone, u.is_locked as "isLocked",
       a.id as "assistantId", a.name as "assistantName",
       m.happiness, m.annoyance,
       (select count(*) from messages msg join conversations c on msg.conversation_id = c.id
@@ -24,7 +24,8 @@ export async function GET() {
       (select max(msg.created_at) from messages msg join conversations c on msg.conversation_id = c.id
          where c.user_id = u.id) as "lastActive",
       pp.summary as "profileSummary",
-      pp.report as "profileReport"
+      pp.report as "profileReport",
+      pp.user_notes as "userNotes"
     from users u
     left join assistants a on a.user_id = u.id
     left join mood_state m on m.assistant_id = a.id

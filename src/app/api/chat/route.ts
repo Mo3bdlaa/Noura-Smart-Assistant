@@ -23,7 +23,7 @@ import {
   setConversationTitle,
 } from "@/lib/chat/store";
 import { generateTitle } from "@/lib/chat/title";
-import { maybeUpdateProfile } from "@/lib/insights/profile";
+import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 import { getLocale } from "@/lib/i18n";
 import { friendlyError } from "@/lib/llm/errors";
@@ -109,10 +109,11 @@ export async function POST(req: Request) {
     return [];
   });
 
-  const [history, memories, mood] = await Promise.all([
+  const [history, memories, mood, profile] = await Promise.all([
     recentHistory(conversationId),
     safeRetrieve,
     readMood(ctx.assistantId),
+    getProfile(ctx.assistantId).catch(() => null),
   ]);
 
   const system = assembleSystem({
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
     canon: (assistant?.canon as CanonEntry[]) ?? [],
     mood,
     memories,
+    userNotes: profile?.userNotes,
     time: timeContext(user.timezone),
     userDisplayName: user.displayName,
     initiatives,

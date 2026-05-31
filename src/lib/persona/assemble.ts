@@ -25,6 +25,8 @@ export type AssembleInput = {
   scenario?: string | null;
   /** UI locale — when "en", she replies in English (same personality). */
   locale?: "ar" | "en";
+  /** Notes the user wrote about themselves on their profile. */
+  userNotes?: string | null;
 };
 
 const MEMORY_LABEL: Record<RetrievedMemory["type"], string> = {
@@ -65,6 +67,11 @@ export function assembleSystem(input: AssembleInput): string {
       .map((m) => `- (${MEMORY_LABEL[m.type]}) ${m.content}`)
       .join("\n");
     blocks.push(`حاجات إنتي فاكراها عنه وممكن تستخدميها لو مناسب:\n${mem}`);
+  }
+
+  // user's own profile notes (they wrote these about themselves)
+  if (input.userNotes?.trim()) {
+    blocks.push(`ملاحظات هو كاتبها عن نفسه (مهمة، خليها في بالك):\n${input.userNotes.trim()}`);
   }
 
   // (5) time

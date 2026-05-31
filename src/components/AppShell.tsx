@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
@@ -78,11 +79,13 @@ export function AppShell({
             <IconButton onClick={() => setOpen(true)} aria-label="القائمة">
               <Menu className="size-5" />
             </IconButton>
-            <Avatar name={assistantName} size="sm" mood={mood} />
-            <div className="min-w-0">
-              <div className="font-bold text-ink leading-tight truncate">{assistantName}</div>
-              <div className="text-[11px] text-muted leading-tight truncate">{moodLabel}</div>
-            </div>
+            <Link href="/profile" className="flex items-center gap-3 min-w-0 flex-1">
+              <Avatar name={assistantName} size="sm" mood={mood} />
+              <div className="min-w-0">
+                <div className="font-bold text-ink leading-tight truncate">{assistantName}</div>
+                <div className="text-[11px] text-muted leading-tight truncate">{moodLabel}</div>
+              </div>
+            </Link>
           </div>
         </header>
 

@@ -334,3 +334,5 @@ DO $$ BEGIN ALTER TABLE "personality_profiles" ADD CONSTRAINT "pp_user_fk" FOREI
 --> statement-breakpoint
 ALTER TABLE "tasks" ADD COLUMN IF NOT EXISTS "conversation_id" uuid;
 DO $$ BEGIN ALTER TABLE "tasks" ADD CONSTRAINT "tasks_conversation_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "conversations"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
+--> statement-breakpoint
+ALTER TABLE "personality_profiles" ADD COLUMN IF NOT EXISTS "user_notes" text;

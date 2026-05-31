@@ -98,8 +98,11 @@ export function Sidebar(props: {
 
   return (
     <aside className="w-72 max-w-[82vw] h-dvh flex flex-col bg-surface border-l border-border">
-      {/* header */}
-      <div className="p-4 pt-safe flex items-center gap-3 border-b border-border">
+      {/* header → profile */}
+      <button
+        onClick={() => go("/profile")}
+        className="p-4 pt-safe flex items-center gap-3 border-b border-border text-start hover:bg-elevated/50 transition-theme"
+      >
         <Avatar name={props.assistantName} size="lg" mood={props.mood} />
         <div className="min-w-0">
           <div className="text-lg font-extrabold text-ink leading-tight truncate">
@@ -107,7 +110,7 @@ export function Sidebar(props: {
           </div>
           <div className="text-xs text-muted leading-tight truncate">{props.moodLabel}</div>
         </div>
-      </div>
+      </button>
 
       {/* new conversation */}
       <div className="p-3 grid grid-cols-2 gap-2">

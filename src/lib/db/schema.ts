@@ -362,6 +362,7 @@ export const personalityProfiles = pgTable("personality_profiles", {
     .references(() => users.id, { onDelete: "cascade" }),
   summary: text("summary"), // one-paragraph read
   report: jsonb("report").notNull().default(sql`'{}'::jsonb`), // structured sections
+  userNotes: text("user_notes"), // user-edited additions to their own profile
   messageCountAtUpdate: integer("message_count_at_update").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

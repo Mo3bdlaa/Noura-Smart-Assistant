@@ -13,6 +13,21 @@ export type ProfileReport = {
   how_to_support?: string;
 };
 
+/** Save the user's own edits/additions to their profile (upserts the row). */
+export async function setUserNotes(
+  userId: string,
+  assistantId: string,
+  notes: string | null,
+): Promise<void> {
+  await db
+    .insert(personalityProfiles)
+    .values({ assistantId, userId, userNotes: notes })
+    .onConflictDoUpdate({
+      target: personalityProfiles.assistantId,
+      set: { userNotes: notes, updatedAt: new Date() },
+    });
+}
+
 export async function getProfile(assistantId: string): Promise<PersonalityProfile | null> {
   const [row] = await db
     .select()
