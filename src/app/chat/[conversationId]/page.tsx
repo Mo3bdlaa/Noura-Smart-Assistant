@@ -43,15 +43,17 @@ export default async function ConversationPage({
       assistantName={assistant?.name ?? "نورا"}
       assistantMood={moodKind(mood)}
       initialMessages={msgs
-        .filter((m) => m.role !== "system")
+        .filter((m) => m.role !== "system" || (m.meta as { sideCard?: string } | null)?.sideCard)
         .map((m) => {
-          const meta = (m.meta as { reaction?: string | null; images?: string[] } | null) ?? null;
+          const meta =
+            (m.meta as { reaction?: string | null; images?: string[]; sideCard?: string } | null) ?? null;
           return {
             id: m.id,
-            role: m.role as "user" | "assistant",
+            role: m.role === "user" ? ("user" as const) : ("assistant" as const),
             content: m.content,
             reaction: meta?.reaction ?? null,
             images: meta?.images,
+            sideCardId: meta?.sideCard,
           };
         })}
     />

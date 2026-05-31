@@ -58,6 +58,35 @@ export async function setMessageReaction(ctx: TenantContext, id: string, reactio
     .where(and(eq(messages.id, id), eq(messages.userId, ctx.userId)));
 }
 
+/**
+ * Drop a "card" message into the main conversation that links to a new side
+ * conversation, so you can see — from main — what side topics you opened.
+ */
+export async function insertSideCard(ctx: TenantContext, sideId: string, title: string) {
+  const main = await getMainConversation(ctx);
+  if (!main) return;
+  await db.insert(messages).values({
+    conversationId: main.id,
+    userId: ctx.userId,
+    role: "system",
+    content: title,
+    meta: { sideCard: sideId },
+  });
+}
+
+/** Keep the side-card label in sync once the side conversation gets a title. */
+export async function updateSideCardTitle(sideId: string, title: string) {
+  await db
+    .update(messages)
+    .set({ content: title })
+    .where(sql`${messages.meta}->>'sideCard' = ${sideId}`);
+}
+
+/** Remove the side-card(s) for a deleted side conversation. */
+export async function deleteSideCards(sideId: string) {
+  await db.delete(messages).where(sql`${messages.meta}->>'sideCard' = ${sideId}`);
+}
+
 /** Set a conversation's title (auto-generated for side/incognito chats). */
 export async function setConversationTitle(ctx: TenantContext, id: string, title: string) {
   await db

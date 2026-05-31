@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AuthError, requireTenant } from "@/lib/auth/guard";
-import { createConversation, listConversations } from "@/lib/chat/store";
+import { createConversation, insertSideCard, listConversations } from "@/lib/chat/store";
 
 export async function GET() {
   try {
@@ -28,6 +28,8 @@ export async function POST(req: Request) {
       title: parsed.data.title,
       scenario: parsed.data.type === "incognito" ? parsed.data.scenario : undefined,
     });
+    // Drop a card in main so you can see this side topic was opened.
+    if (parsed.data.type === "side") await insertSideCard(ctx, conv.id, "محادثة جانبية");
     return NextResponse.json({ conversation: conv });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.code }, { status: err.status });

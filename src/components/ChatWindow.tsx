@@ -31,6 +31,8 @@ type Msg = {
   content: string;
   images?: string[];
   reaction?: string | null;
+  /** if set, this row is a card linking to a side conversation */
+  sideCardId?: string;
 };
 
 const REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🔥", "🥰"];
@@ -269,7 +271,7 @@ export function ChatWindow({
     // Stream into the trailing assistant reply if there is one; otherwise add a
     // fresh assistant bubble (e.g. when the previous reply errored/empty).
     let targetIdx = messages.length - 1;
-    if (messages[targetIdx]?.role === "assistant") {
+    if (messages[targetIdx]?.role === "assistant" && !messages[targetIdx]?.sideCardId) {
       setMessages((m) => m.map((x, i) => (i === targetIdx ? { ...x, content: "" } : x)));
     } else {
       targetIdx = messages.length;
@@ -369,19 +371,36 @@ export function ChatWindow({
               {t("اكتب أي حاجة في بالك 👋", "Say anything on your mind 👋")}
             </EmptyState>
           ) : (
-            messages.map((m, i) => (
-              <Bubble
-                key={m.id}
-                msg={m}
-                assistantName={assistantName}
-                assistantMood={assistantMood}
-                streaming={streaming}
-                onDelete={() => deleteMessage(m.id)}
-                onReact={(e) => react(m.id, e)}
-                canRegenerate={i === lastUserIdx}
-                onRegenerate={regenerate}
-              />
-            ))
+            messages.map((m, i) =>
+              m.sideCardId ? (
+                <button
+                  key={m.id}
+                  onClick={() => router.push(`/chat/${m.sideCardId}`)}
+                  className="self-center w-full max-w-sm flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3 shadow-soft hover:bg-elevated transition-theme animate-fade-in"
+                >
+                  <span className="grid place-items-center size-9 rounded-xl bg-accent-soft text-accent shrink-0">
+                    <MessageCircleHeart className="size-5" />
+                  </span>
+                  <div className="flex-1 min-w-0 text-start">
+                    <div className="text-[11px] text-muted">{t("محادثة جانبية", "Side chat")}</div>
+                    <div className="text-ink font-medium truncate">{m.content}</div>
+                  </div>
+                  <span className="text-xs text-accent font-semibold shrink-0">{t("افتح", "Open")}</span>
+                </button>
+              ) : (
+                <Bubble
+                  key={m.id}
+                  msg={m}
+                  assistantName={assistantName}
+                  assistantMood={assistantMood}
+                  streaming={streaming}
+                  onDelete={() => deleteMessage(m.id)}
+                  onReact={(e) => react(m.id, e)}
+                  canRegenerate={i === lastUserIdx}
+                  onRegenerate={regenerate}
+                />
+              ),
+            )
           )}
         </div>
       </div>

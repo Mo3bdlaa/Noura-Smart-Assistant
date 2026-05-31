@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AuthError, requireTenant } from "@/lib/auth/guard";
-import { deleteConversation, getConversation, updateScenario } from "@/lib/chat/store";
+import { deleteConversation, deleteSideCards, getConversation, updateScenario } from "@/lib/chat/store";
 
 const PatchBody = z.object({ scenario: z.string().trim().max(2000) });
 
@@ -36,6 +36,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "مينفعش تمسح المحادثة الرئيسية." }, { status: 400 });
     }
     await deleteConversation(ctx, id);
+    if (conv.type === "side") await deleteSideCards(id); // remove its card from main
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.code }, { status: err.status });

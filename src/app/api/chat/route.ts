@@ -21,6 +21,7 @@ import {
   recentHistory,
   saveMessage,
   setConversationTitle,
+  updateSideCardTitle,
 } from "@/lib/chat/store";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
@@ -154,7 +155,10 @@ export async function POST(req: Request) {
         const hist = await recentHistory(conversationId, 6);
         if (hist.length >= 2) {
           const title = await generateTitle(hist, user.locale);
-          if (title) await setConversationTitle(ctx, conversationId, title);
+          if (title) {
+            await setConversationTitle(ctx, conversationId, title);
+            if (conv.type === "side") await updateSideCardTitle(conversationId, title);
+          }
         }
       } catch (e) {
         console.error("title gen failed", e);
