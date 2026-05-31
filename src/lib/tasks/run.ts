@@ -17,15 +17,20 @@ function instructionFor(task: Task, en: boolean): string {
       ? `Proactively message the user now. Look up current info and briefly summarize: "${topic}". Lead with the key facts, in your own warm voice.`
       : `ابعتي للمستخدم دلوقتي من نفسك. دوّري على المعلومة المحدّثة ولخّصي بإيجاز: "${topic}". هاتي المهم الأول وبطريقتك.`;
   }
+  const details = task.instruction?.trim();
   if (task.kind === "nudge") {
     return en
       ? `Proactively check in on the user warmly (you set this reminder): "${task.title}".`
       : `اطمني على المستخدم من نفسك بحنية (إنتي اللي حطّيتي ده): "${task.title}".`;
   }
-  // remind
+  // remind — include any details the user gave so the message is useful.
   return en
-    ? `Proactively remind the user now, warmly and briefly, about: "${task.title}".`
-    : `فكّري المستخدم دلوقتي بحنية واختصار بـ: "${task.title}".`;
+    ? `Proactively remind the user now, warmly, about: "${task.title}".${
+        details ? ` Include these details: ${details}.` : ""
+      }`
+    : `فكّري المستخدم دلوقتي بحنية بـ: "${task.title}".${
+        details ? ` ولازم تقولي التفاصيل دي: ${details}.` : ""
+      }`;
 }
 
 async function runTask(task: Task): Promise<void> {

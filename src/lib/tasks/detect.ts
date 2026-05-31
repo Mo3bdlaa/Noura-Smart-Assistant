@@ -35,7 +35,7 @@ Output JSON exactly:
     {
       "kind": "remind" | "digest" | "nudge",
       "title": "short label in the user's language",
-      "instruction": "for digest: what to research/summarize, else null",
+      "instruction": "ALL the details/body to include in the message — e.g. exact medication names, doses, steps, links; or for digest what to research. Keep any specifics the user gave. null only if none.",
       "datetime": "ISO 8601 with timezone offset for the FIRST run",
       "recurrence": "once" | "daily" | "weekly"
     }
