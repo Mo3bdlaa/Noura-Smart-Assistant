@@ -51,6 +51,10 @@ export const assistants = pgTable(
     persona: jsonb("persona").notNull().default(sql`'{}'::jsonb`),
     // canon = durable self-facts she has stated: [{ fact, statedAt, sourceMessageId }]
     canon: jsonb("canon").notNull().default(sql`'[]'::jsonb`),
+    // her profile photo (downscaled data URL) + a description of her looks so
+    // she's aware of her own appearance.
+    avatarUrl: text("avatar_url"),
+    appearance: text("appearance"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

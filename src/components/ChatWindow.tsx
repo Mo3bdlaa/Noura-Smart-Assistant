@@ -66,6 +66,7 @@ type Props = {
   conversationType: "main" | "side" | "incognito";
   scenario?: string | null;
   assistantName: string;
+  assistantPhoto?: string | null;
   assistantMood: "happy" | "calm" | "upset";
   initialMessages: Msg[];
 };
@@ -90,6 +91,7 @@ export function ChatWindow({
   conversationType,
   scenario,
   assistantName,
+  assistantPhoto,
   assistantMood,
   initialMessages,
 }: Props) {
@@ -421,7 +423,7 @@ export function ChatWindow({
         <div className="flex flex-col gap-3 px-3 sm:px-4 py-5 max-w-3xl mx-auto w-full">
           {messages.length === 0 ? (
             <EmptyState
-              icon={<Avatar name={assistantName} size="lg" mood={assistantMood} />}
+              icon={<Avatar name={assistantName} photo={assistantPhoto} size="lg" mood={assistantMood} />}
               title={t(`ابدأ كلامك مع ${assistantName}`, `Start chatting with ${assistantName}`)}
             >
               {t("اكتب أي حاجة في بالك 👋", "Say anything on your mind 👋")}
@@ -448,6 +450,7 @@ export function ChatWindow({
                   key={m.id}
                   msg={m}
                   assistantName={assistantName}
+                  assistantPhoto={assistantPhoto}
                   assistantMood={assistantMood}
                   streaming={streaming}
                   onDelete={() => deleteMessage(m.id)}
@@ -618,6 +621,7 @@ export function ChatWindow({
 function Bubble({
   msg,
   assistantName,
+  assistantPhoto,
   assistantMood,
   streaming,
   onDelete,
@@ -632,6 +636,7 @@ function Bubble({
 }: {
   msg: Msg;
   assistantName: string;
+  assistantPhoto?: string | null;
   assistantMood: "happy" | "calm" | "upset";
   streaming: boolean;
   onDelete: () => void;
@@ -681,7 +686,7 @@ function Bubble({
           <Check className="size-3.5" />
         </span>
       )}
-      {!isUser && <Avatar name={assistantName} size="sm" mood={assistantMood} className="mb-0.5" />}
+      {!isUser && <Avatar name={assistantName} photo={assistantPhoto} size="sm" mood={assistantMood} className="mb-0.5" />}
 
       <div className="relative space-y-1.5 min-w-0">
         {msg.images?.length ? (

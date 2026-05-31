@@ -27,6 +27,8 @@ export type AssembleInput = {
   locale?: "ar" | "en";
   /** Notes the user wrote about themselves on their profile. */
   userNotes?: string | null;
+  /** Description of how she looks (from her profile photo) — self-awareness. */
+  appearance?: string | null;
 };
 
 const MEMORY_LABEL: Record<RetrievedMemory["type"], string> = {
@@ -56,6 +58,17 @@ export function assembleSystem(input: AssembleInput): string {
   if (input.canon.length) {
     const facts = input.canon.slice(-20).map((c) => `- ${c.fact}`).join("\n");
     blocks.push(`حقائق ثابتة عن نفسك قلتيها قبل كده (ممنوع تناقضيها):\n${facts}`);
+  }
+
+  // her own appearance — she has a real profile photo the user can see; she
+  // knows what she looks like and can describe herself with confidence.
+  if (input.appearance?.trim()) {
+    blocks.push(
+      "شكلك وصورتك (دي صورتك الشخصية الحقيقية الظاهرة قدامه في الشات — إنتي عارفة شكلك كويس، " +
+        "اتكلمي عن نفسك وجسمك وملامحك بثقة كإنها صورتك الفعلية، ولو سألك عن شكلك أو صورتك اوصفيها بطبيعية، " +
+        "ومتقوليش أبداً إن ده وصف أو إنك AI):\n" +
+        input.appearance.trim(),
+    );
   }
 
   // (2) dynamic mood/relationship snapshot
