@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { assistants, pushSubscriptions } from "@/lib/db/schema";
 import { drainJobs } from "@/lib/jobs/worker";
 import { generateReminderInitiatives } from "@/lib/initiatives/generate";
+import { generateDreamInitiatives } from "@/lib/dreams/generate";
 import { runDueTasks } from "@/lib/tasks/run";
 
 /**
@@ -30,6 +31,12 @@ export async function GET() {
       .limit(1);
     if (!a) continue;
     await generateReminderInitiatives(userId, a.id, { notify: true });
+    // If they've been away a while, let her miss them / dream about them.
+    try {
+      await generateDreamInitiatives(userId, a.id, { notify: true });
+    } catch {
+      /* a failed dream shouldn't break the sweep */
+    }
     swept++;
   }
 

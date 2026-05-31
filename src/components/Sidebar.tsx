@@ -7,6 +7,7 @@ import {
   Brain,
   Crown,
   Glasses,
+  Heart,
   LogOut,
   MessageCirclePlus,
   Pin,
@@ -159,6 +160,7 @@ export function Sidebar(props: {
 
       {/* footer */}
       <div className="p-2 pb-safe border-t border-border space-y-0.5">
+        <FooterLink icon={<Heart className="size-[18px]" />} label={t("رحلتنا", "Our journey")} onClick={() => go("/timeline")} />
         <FooterLink icon={<Brain className="size-[18px]" />} label={t("الذاكرة", "Memory")} onClick={() => go("/memories")} />
         <FooterLink icon={<Bell className="size-[18px]" />} label={t("التذكيرات", "Reminders")} onClick={() => go("/reminders")} />
         <FooterLink icon={<Settings className="size-[18px]" />} label={t("الإعدادات", "Settings")} onClick={() => go("/settings")} />

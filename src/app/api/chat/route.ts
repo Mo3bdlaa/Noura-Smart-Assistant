@@ -31,6 +31,8 @@ import { friendlyError } from "@/lib/llm/errors";
 import { detectTasks } from "@/lib/tasks/detect";
 import { createTask } from "@/lib/tasks/store";
 import { runDueTasks } from "@/lib/tasks/run";
+import { captureMood } from "@/lib/timeline/snapshot";
+import { touchLastSeen } from "@/lib/dreams/generate";
 
 // Allow long-running streamed replies + post-response reflection on Vercel.
 export const maxDuration = 60;
@@ -171,6 +173,20 @@ export async function POST(req: Request) {
         await maybeUpdateProfile(ctx.userId, ctx.assistantId, user.locale);
       } catch (e) {
         console.error("profile update failed", e);
+      }
+    }
+    // Relationship timeline: record her mood + that the user was here just now.
+    // (Both skipped for incognito — that space leaves no trace.)
+    if (conv.type !== "incognito") {
+      try {
+        await captureMood(ctx.assistantId, await readMood(ctx.assistantId));
+      } catch (e) {
+        console.error("mood snapshot failed", e);
+      }
+      try {
+        await touchLastSeen(ctx.assistantId);
+      } catch (e) {
+        console.error("touchLastSeen failed", e);
       }
     }
     // Activity-driven: run anything that's due right now (no external trigger).

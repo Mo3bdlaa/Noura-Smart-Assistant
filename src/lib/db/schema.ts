@@ -55,6 +55,8 @@ export const assistants = pgTable(
     // she's aware of her own appearance.
     avatarUrl: text("avatar_url"),
     appearance: text("appearance"),
+    // last time the user actually said something — drives absence-awareness/"dreams".
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
@@ -165,6 +167,26 @@ export const moodState = pgTable("mood_state", {
   lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Timestamped mood history (throttled) so the relationship timeline can chart how
+// her feelings moved over time. mood_state holds only "now"; this holds the story.
+export const moodSnapshots = pgTable(
+  "mood_snapshots",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    assistantId: uuid("assistant_id")
+      .notNull()
+      .references(() => assistants.id, { onDelete: "cascade" }),
+    happiness: real("happiness").notNull(),
+    affection: real("affection").notNull(),
+    annoyance: real("annoyance").notNull(),
+    energy: real("energy").notNull(),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byTime: index("mood_snapshots_time_idx").on(t.assistantId, t.capturedAt),
+  }),
+);
+
 export const loginAttempts = pgTable(
   "login_attempts",
   {
@@ -240,7 +262,7 @@ export const pendingInitiatives = pgTable(
       .notNull()
       .references(() => assistants.id, { onDelete: "cascade" }),
     kind: text("kind", {
-      enum: ["security", "followup", "time", "reminder", "mood"],
+      enum: ["security", "followup", "time", "reminder", "mood", "dream"],
     }).notNull(),
     payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
     priority: integer("priority").notNull().default(5),
@@ -379,6 +401,7 @@ export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Memory = typeof memories.$inferSelect;
 export type MoodState = typeof moodState.$inferSelect;
+export type MoodSnapshotRow = typeof moodSnapshots.$inferSelect;
 export type Reminder = typeof reminders.$inferSelect;
 export type PendingInitiative = typeof pendingInitiatives.$inferSelect;
 export type Job = typeof jobs.$inferSelect;

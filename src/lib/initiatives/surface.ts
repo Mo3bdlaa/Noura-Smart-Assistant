@@ -19,6 +19,9 @@ function frame(init: PendingInitiative, timezone: string): string {
       return String(p.text ?? "");
     case "mood":
       return String(p.text ?? "");
+    case "dream":
+      // already a fully-written, first-person line — surface it almost verbatim.
+      return String(p.text ?? "");
     default:
       return "";
   }
