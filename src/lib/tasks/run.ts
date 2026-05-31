@@ -3,7 +3,6 @@ import { db } from "@/lib/db/client";
 import { assistants, conversations, messages, users, type Task } from "@/lib/db/schema";
 import { readMood } from "@/lib/mood/state";
 import { assembleSystem } from "@/lib/persona/assemble";
-import { geminiGenerate } from "@/lib/llm/gemini-native";
 import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
 import { sendPushToUser } from "@/lib/push/send";
@@ -83,7 +82,7 @@ async function runTask(task: Task): Promise<void> {
   try {
     text =
       task.kind === "digest"
-        ? await geminiGenerate({ system, prompt, search: true, temperature: 0.7, maxTokens: 700 })
+        ? await generateText({ system, prompt, search: true, temperature: 0.7, maxTokens: 700 })
         : await generateText({ system, prompt, temperature: 0.85, maxTokens: 400 });
   } catch {
     text = "";

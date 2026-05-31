@@ -66,7 +66,14 @@ export function SettingsForm({
     chatModel: provider?.chatModel ?? "",
     utilityModel: provider?.utilityModel ?? "",
     embedModel: provider?.embedModel ?? "",
+    chatBase: "",
+    chatKeys: "",
+    utilBase: "",
+    utilKeys: "",
+    embBase: "",
+    embKeys: "",
   });
+  const [adv, setAdv] = useState(false);
   const [savingProv, setSavingProv] = useState(false);
 
   async function saveProvider(e: React.FormEvent) {
@@ -76,7 +83,16 @@ export function SettingsForm({
       const res = await fetch("/api/settings/provider", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(prov),
+        body: JSON.stringify({
+          baseUrl: prov.baseUrl,
+          apiKeys: prov.apiKeys,
+          chatModel: prov.chatModel,
+          utilityModel: prov.utilityModel,
+          embedModel: prov.embedModel,
+          chat: { baseUrl: prov.chatBase, apiKeys: prov.chatKeys },
+          utility: { baseUrl: prov.utilBase, apiKeys: prov.utilKeys },
+          embed: { baseUrl: prov.embBase, apiKeys: prov.embKeys },
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -335,6 +351,50 @@ export function SettingsForm({
                   onChange={(e) => setProv((p) => ({ ...p, embedModel: e.target.value }))}
                 />
               </Field>
+              {/* per-role overrides */}
+              <button
+                type="button"
+                onClick={() => setAdv((a) => !a)}
+                className="text-sm font-medium text-accent"
+              >
+                {adv ? "▾ " : "▸ "}
+                {t("متقدّم: provider/مفاتيح لكل موديل", "Advanced: per-model provider/keys")}
+              </button>
+              {adv && (
+                <div className="space-y-4 border-t border-border pt-4">
+                  <p className="text-xs text-muted">
+                    {t(
+                      "سيب أي خانة فاضية عشان تستعمل العام. مثلاً الشات Gemini والأدوات OpenRouter.",
+                      "Leave any field empty to use the global one. e.g. chat on Gemini, utility on OpenRouter.",
+                    )}
+                  </p>
+                  {(
+                    [
+                      ["chat", t("الشات", "Chat"), "chatBase", "chatKeys"],
+                      ["utility", t("الأدوات", "Utility"), "utilBase", "utilKeys"],
+                      ["embed", "Embeddings", "embBase", "embKeys"],
+                    ] as const
+                  ).map(([key, label, baseK, keysK]) => (
+                    <div key={key} className="rounded-xl bg-bg border border-border p-3 space-y-2">
+                      <div className="text-sm font-semibold text-ink">{label}</div>
+                      <Input
+                        dir="ltr"
+                        placeholder={t("Base URL — نفس العام", "Base URL — same as global")}
+                        value={prov[baseK]}
+                        onChange={(e) => setProv((p) => ({ ...p, [baseK]: e.target.value }))}
+                      />
+                      <Textarea
+                        dir="ltr"
+                        rows={2}
+                        placeholder={t("مفاتيح — نفس العام", "keys — same as global")}
+                        value={prov[keysK]}
+                        onChange={(e) => setProv((p) => ({ ...p, [keysK]: e.target.value }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <Button type="submit" variant="outline" loading={savingProv}>
                 {t("حفظ المزوّد", "Save provider")}
               </Button>

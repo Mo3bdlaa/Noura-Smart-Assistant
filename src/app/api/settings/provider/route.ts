@@ -4,18 +4,34 @@ import { AuthError, requireAdmin } from "@/lib/auth/guard";
 import { setSetting } from "@/lib/settings";
 
 /**
- * App-wide LLM provider config (admin only). Everything talks to an
- * OpenAI-compatible endpoint, so switching provider = set base URL + key + model.
- * Empty fields are left unchanged; the key is only written when provided.
+ * App-wide LLM provider config (admin only). A global base URL + key pool +
+ * models, plus optional per-role overrides (chat / utility / embed) so each can
+ * use its own provider + keys.
  */
+const Role = z.object({
+  baseUrl: z.string().trim().optional(),
+  apiKeys: z.string().trim().max(8000).optional(),
+  model: z.string().trim().max(100).optional(),
+});
+
 const Body = z.object({
   baseUrl: z.string().trim().url().optional().or(z.literal("")),
-  /** the key pool — one per line/comma; rotated on quota errors */
   apiKeys: z.string().trim().max(8000).optional(),
   chatModel: z.string().trim().max(100).optional(),
   utilityModel: z.string().trim().max(100).optional(),
   embedModel: z.string().trim().max(100).optional(),
+  // per-role overrides
+  chat: Role.optional(),
+  utility: Role.optional(),
+  embed: Role.optional(),
 });
+
+const cleanKeys = (s: string) =>
+  s
+    .split(/[\n,]+/)
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .join("\n");
 
 export async function POST(req: Request) {
   try {
@@ -27,21 +43,22 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
-  const { baseUrl, apiKeys, chatModel, utilityModel, embedModel } = parsed.data;
+  const d = parsed.data;
 
-  if (baseUrl) await setSetting("llm_base_url", baseUrl);
-  // Normalise the key pool to one-per-line; empty string clears it.
-  if (apiKeys !== undefined) {
-    const cleaned = apiKeys
-      .split(/[\n,]+/)
-      .map((k) => k.trim())
-      .filter(Boolean)
-      .join("\n");
-    await setSetting("llm_api_keys", cleaned);
+  // Only non-empty fields are written, so saving never wipes what you didn't touch.
+  if (d.baseUrl) await setSetting("llm_base_url", d.baseUrl);
+  if (d.apiKeys) await setSetting("llm_api_keys", cleanKeys(d.apiKeys));
+  if (d.chatModel) await setSetting("llm_chat_model", d.chatModel);
+  if (d.utilityModel) await setSetting("llm_utility_model", d.utilityModel);
+  if (d.embedModel) await setSetting("llm_embed_model", d.embedModel);
+
+  for (const role of ["chat", "utility", "embed"] as const) {
+    const r = d[role];
+    if (!r) continue;
+    if (r.baseUrl) await setSetting(`llm_${role}_base_url`, r.baseUrl.trim());
+    if (r.apiKeys) await setSetting(`llm_${role}_api_keys`, cleanKeys(r.apiKeys));
+    if (r.model) await setSetting(`llm_${role}_model`, r.model);
   }
-  if (chatModel) await setSetting("llm_chat_model", chatModel);
-  if (utilityModel) await setSetting("llm_utility_model", utilityModel);
-  if (embedModel) await setSetting("llm_embed_model", embedModel);
 
   return NextResponse.json({ ok: true });
 }

@@ -1,7 +1,8 @@
 import type OpenAI from "openai";
 import { getClient, withLlmKeyed } from "./client";
-import { getLlmConfig } from "./config";
-import { geminiGenerate, geminiStream } from "./gemini-native";
+import { resolveRole, type LlmRole } from "./config";
+import { getRoleKeys } from "./keys";
+import { geminiGenerate, geminiStream, type RoleCfg } from "./gemini-native";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -9,6 +10,12 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 function isGemini(baseURL: string): boolean {
   return baseURL.includes("generativelanguage");
+}
+
+/** Effective base URL + model + key pool for a role. */
+async function roleCfg(role: LlmRole): Promise<RoleCfg> {
+  const [{ baseURL, model }, keys] = await Promise.all([resolveRole(role), getRoleKeys(role)]);
+  return { baseURL, model, keys };
 }
 
 function toMessages(system: string, history: ChatTurn[], images?: string[]): Msg[] {
@@ -61,22 +68,21 @@ export async function* streamChat(opts: {
   images?: string[];
   temperature?: number;
 }): AsyncGenerator<string> {
-  const config = await getLlmConfig();
-  if (isGemini(config.baseURL)) {
-    yield* geminiStream(opts);
+  const cfg = await roleCfg("chat");
+  if (isGemini(cfg.baseURL)) {
+    yield* geminiStream(opts, cfg);
     return;
   }
 
-  const stream = (await withLlmKeyed(async (key) => {
-    const { client } = await getClient(key);
-    return client.chat.completions.create({
-      model: config.chatModel,
+  const stream = (await withLlmKeyed(cfg.keys, (key) =>
+    getClient(key, cfg.baseURL).chat.completions.create({
+      model: cfg.model,
       messages: toMessages(opts.system, opts.history, opts.images),
       temperature: opts.temperature ?? 0.9,
       max_tokens: 1200,
       stream: true,
-    });
-  })) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>;
+    }),
+  )) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>;
 
   for await (const chunk of stream) {
     const text = chunk.choices?.[0]?.delta?.content;
@@ -84,29 +90,35 @@ export async function* streamChat(opts: {
   }
 }
 
-/** One-shot plain-text generation. */
+/**
+ * One-shot plain-text generation. `search` (web grounding) uses the chat model
+ * + Gemini's google_search when available; otherwise the lighter utility model.
+ */
 export async function generateText(opts: {
   system: string;
   prompt: string;
   temperature?: number;
   maxTokens?: number;
+  search?: boolean;
 }): Promise<string> {
-  const config = await getLlmConfig();
-  if (isGemini(config.baseURL)) {
-    return geminiGenerate({ ...opts, model: config.utilityModel });
+  const cfg = await roleCfg(opts.search ? "chat" : "utility");
+  if (isGemini(cfg.baseURL)) {
+    return geminiGenerate(
+      { system: opts.system, prompt: opts.prompt, temperature: opts.temperature, maxTokens: opts.maxTokens, search: opts.search },
+      cfg,
+    );
   }
-  const res = await withLlmKeyed(async (key) => {
-    const { client } = await getClient(key);
-    return client.chat.completions.create({
-      model: config.utilityModel,
+  const res = await withLlmKeyed(cfg.keys, (key) =>
+    getClient(key, cfg.baseURL).chat.completions.create({
+      model: cfg.model,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.prompt },
       ],
       temperature: opts.temperature ?? 0.6,
       max_tokens: opts.maxTokens ?? 600,
-    });
-  });
+    }),
+  );
   return res.choices[0]?.message?.content?.trim() ?? "";
 }
 
@@ -116,22 +128,21 @@ export async function generateJson<T = unknown>(opts: {
   prompt: string;
   temperature?: number;
 }): Promise<T | null> {
-  const config = await getLlmConfig();
-  if (isGemini(config.baseURL)) {
-    const text = await geminiGenerate({ ...opts, json: true, model: config.utilityModel });
+  const cfg = await roleCfg("utility");
+  if (isGemini(cfg.baseURL)) {
+    const text = await geminiGenerate({ ...opts, json: true }, cfg);
     return parseJsonLoose<T>(text);
   }
-  const res = await withLlmKeyed(async (key) => {
-    const { client } = await getClient(key);
-    return client.chat.completions.create({
-      model: config.utilityModel,
+  const res = await withLlmKeyed(cfg.keys, (key) =>
+    getClient(key, cfg.baseURL).chat.completions.create({
+      model: cfg.model,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.prompt },
       ],
       temperature: opts.temperature ?? 0.4,
       response_format: { type: "json_object" },
-    });
-  });
+    }),
+  );
   return parseJsonLoose<T>(res.choices[0]?.message?.content);
 }

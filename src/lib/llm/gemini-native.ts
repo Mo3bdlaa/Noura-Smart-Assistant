@@ -1,6 +1,8 @@
-import { getLlmConfig } from "./config";
 import { withLlmKeyed } from "./client";
 import type { ChatTurn } from "./chat";
+
+/** Resolved per-role provider config (base URL + model + key pool). */
+export type RoleCfg = { baseURL: string; model: string; keys: string[] };
 
 /**
  * Native Gemini backend (REST). Used when the provider is Gemini, because the
@@ -56,16 +58,18 @@ function extractText(data: any): string {
   );
 }
 
-export async function* geminiStream(opts: {
-  system: string;
-  history: ChatTurn[];
-  images?: string[];
-  temperature?: number;
-}): AsyncGenerator<string> {
-  const cfg = await getLlmConfig();
+export async function* geminiStream(
+  opts: {
+    system: string;
+    history: ChatTurn[];
+    images?: string[];
+    temperature?: number;
+  },
+  cfg: RoleCfg,
+): AsyncGenerator<string> {
   const base = nativeBase(cfg.baseURL);
   const urlFor = (key: string) =>
-    `${base}models/${cfg.chatModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`;
+    `${base}models/${cfg.model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`;
   const baseBody = {
     systemInstruction: { parts: [{ text: opts.system }] },
     contents: toContents(opts.history, opts.images),
@@ -78,7 +82,7 @@ export async function* geminiStream(opts: {
   };
 
   const open = (withSearch: boolean) =>
-    withLlmKeyed(async (key) => {
+    withLlmKeyed(cfg.keys, async (key) => {
       const r = await fetch(urlFor(key), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,21 +128,20 @@ export async function* geminiStream(opts: {
   }
 }
 
-export async function geminiGenerate(opts: {
-  system: string;
-  prompt: string;
-  temperature?: number;
-  json?: boolean;
-  maxTokens?: number;
-  /** enable Google Search grounding (for digests/current info) */
-  search?: boolean;
-  /** override the model (e.g. a lighter utility model) */
-  model?: string;
-}): Promise<string> {
-  const cfg = await getLlmConfig();
-  const model = opts.model || cfg.chatModel;
+export async function geminiGenerate(
+  opts: {
+    system: string;
+    prompt: string;
+    temperature?: number;
+    json?: boolean;
+    maxTokens?: number;
+    /** enable Google Search grounding (for digests/current info) */
+    search?: boolean;
+  },
+  cfg: RoleCfg,
+): Promise<string> {
   const urlFor = (key: string) =>
-    `${nativeBase(cfg.baseURL)}models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    `${nativeBase(cfg.baseURL)}models/${cfg.model}:generateContent?key=${encodeURIComponent(key)}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const generationConfig: any = {
     temperature: opts.temperature ?? 0.4,
@@ -156,7 +159,7 @@ export async function geminiGenerate(opts: {
   };
 
   const call = (withSearch: boolean) =>
-    withLlmKeyed(async (key) => {
+    withLlmKeyed(cfg.keys, async (key) => {
       const r = await fetch(urlFor(key), {
         method: "POST",
         headers: { "Content-Type": "application/json" },

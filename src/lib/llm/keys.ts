@@ -9,20 +9,30 @@ import { getLlmConfig } from "./config";
  * NOTE: Gemini free-tier quota is per *project*, so multiple keys only help if
  * they come from different Google accounts/projects.
  */
-function splitKeys(s?: string | null): string[] {
+export function splitKeys(s?: string | null): string[] {
   return (s ?? "")
     .split(/[\n,]+/)
     .map((k) => k.trim())
     .filter(Boolean);
 }
 
-/** All configured keys: env LLM_API_KEYS + setting llm_api_keys + the single key. */
+/** All configured global keys: env LLM_API_KEYS + setting llm_api_keys + the single key. */
 export async function getApiKeys(): Promise<string[]> {
   const fromEnv = splitKeys(process.env.LLM_API_KEYS);
   const fromSetting = splitKeys(await getSetting("llm_api_keys"));
   const single = (await getLlmConfig()).apiKey;
   const all = [...fromEnv, ...fromSetting, single].map((k) => k.trim()).filter(Boolean);
   return Array.from(new Set(all));
+}
+
+/** Keys for a given role — its own pool if set, otherwise the global pool. */
+export async function getRoleKeys(role: "chat" | "utility" | "embed"): Promise<string[]> {
+  const own = [
+    ...splitKeys(process.env[`LLM_${role.toUpperCase()}_API_KEYS`]),
+    ...splitKeys(await getSetting(`llm_${role}_api_keys`)),
+  ];
+  const uniq = Array.from(new Set(own.map((k) => k.trim()).filter(Boolean)));
+  return uniq.length ? uniq : getApiKeys();
 }
 
 // --- rotation + cooldown state (per server instance) ---

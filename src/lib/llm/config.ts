@@ -45,3 +45,19 @@ export async function getLlmConfig(): Promise<LlmConfig> {
 
   return { baseURL, apiKey, chatModel, utilityModel, embedModel };
 }
+
+export type LlmRole = "chat" | "utility" | "embed";
+
+/**
+ * Effective base URL + model for a given role. Each role can override the base
+ * URL (setting `llm_<role>_base_url`); otherwise it inherits the global one.
+ * Keys are resolved separately via getRoleKeys() to avoid an import cycle.
+ */
+export async function resolveRole(role: LlmRole): Promise<{ baseURL: string; model: string }> {
+  const global = await getLlmConfig();
+  const roleBase =
+    process.env[`LLM_${role.toUpperCase()}_BASE_URL`] || (await getSetting(`llm_${role}_base_url`));
+  const model =
+    role === "chat" ? global.chatModel : role === "utility" ? global.utilityModel : global.embedModel;
+  return { baseURL: roleBase || global.baseURL, model };
+}

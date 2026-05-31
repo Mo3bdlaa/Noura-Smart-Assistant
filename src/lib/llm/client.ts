@@ -1,6 +1,5 @@
 import OpenAI from "openai";
-import { getLlmConfig, type LlmConfig } from "./config";
-import { getApiKeys, markCooling, pickKey } from "./keys";
+import { markCooling, pickKey } from "./keys";
 import { isQuotaError } from "./errors";
 
 /**
@@ -11,17 +10,15 @@ import { isQuotaError } from "./errors";
 const g = globalThis as unknown as { __nouraLlmClients?: Map<string, OpenAI> };
 const clients = (g.__nouraLlmClients ??= new Map<string, OpenAI>());
 
-export async function getClient(key?: string): Promise<{ client: OpenAI; config: LlmConfig }> {
-  const config = await getLlmConfig();
-  const apiKey = key ?? config.apiKey;
-  if (!apiKey) throw new Error("LLM API key is not set (configure it in setup)");
-  const cacheKey = `${config.baseURL}|${apiKey}`;
+export function getClient(key: string, baseURL: string): OpenAI {
+  if (!key) throw new Error("LLM API key is not set (configure it in setup)");
+  const cacheKey = `${baseURL}|${key}`;
   let client = clients.get(cacheKey);
   if (!client) {
-    client = new OpenAI({ apiKey, baseURL: config.baseURL });
+    client = new OpenAI({ apiKey: key, baseURL });
     clients.set(cacheKey, client);
   }
-  return { client, config };
+  return client;
 }
 
 // --- minimal concurrency gate ---
@@ -51,11 +48,11 @@ function isRetryable(err: unknown): boolean {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Run an LLM call with a key from the pool. On a quota error the key is cooled
- * down and the next key is tried immediately; other transient errors back off.
+ * Run an LLM call with a key from the given pool. On a quota error the key is
+ * cooled down and the next key is tried immediately; other transient errors
+ * back off.
  */
-export async function withLlmKeyed<T>(fn: (key: string) => Promise<T>): Promise<T> {
-  const keys = await getApiKeys();
+export async function withLlmKeyed<T>(keys: string[], fn: (key: string) => Promise<T>): Promise<T> {
   if (keys.length === 0) throw new Error("LLM API key is not set (configure it in setup)");
   await acquire();
   try {
@@ -84,9 +81,4 @@ export async function withLlmKeyed<T>(fn: (key: string) => Promise<T>): Promise<
   } finally {
     release();
   }
-}
-
-/** Back-compat wrapper for callers that don't need the key (rotation still applies). */
-export function withLlm<T>(fn: () => Promise<T>): Promise<T> {
-  return withLlmKeyed(() => fn());
 }

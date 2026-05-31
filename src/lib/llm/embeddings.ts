@@ -1,5 +1,7 @@
 import { EMBEDDING_DIM } from "@/lib/db/schema";
 import { getClient, withLlmKeyed } from "./client";
+import { resolveRole } from "./config";
+import { getRoleKeys } from "./keys";
 
 /**
  * Task type is kept for API compatibility with the previous Gemini-native layer.
@@ -20,16 +22,16 @@ export async function embedBatch(
   _taskType: EmbedTask = "RETRIEVAL_DOCUMENT",
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
+  const [{ baseURL, model }, keys] = await Promise.all([resolveRole("embed"), getRoleKeys("embed")]);
   // Pin output dims to the pgvector column size (models like gemini-embedding-001
   // and OpenAI's text-embedding-3-* support Matryoshka dimension truncation).
-  const res = await withLlmKeyed(async (key) => {
-    const { client, config } = await getClient(key);
-    return client.embeddings.create({
-      model: config.embedModel,
+  const res = await withLlmKeyed(keys, (key) =>
+    getClient(key, baseURL).embeddings.create({
+      model,
       input: texts,
       dimensions: EMBEDDING_DIM,
-    });
-  });
+    }),
+  );
   return res.data.map((d) => {
     const v = d.embedding as number[];
     if (v.length !== EMBEDDING_DIM) {
