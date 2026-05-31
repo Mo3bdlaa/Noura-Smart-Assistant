@@ -466,7 +466,7 @@ export function ChatWindow({
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-border bg-surface/80 backdrop-blur-md p-3 pb-safe">
+      <div className="shrink-0 border-t border-border bg-surface/80 backdrop-blur-md px-3 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))]">
         {forkMode ? (
           <div className="max-w-3xl mx-auto flex items-center gap-2 animate-slide-up">
             <div className="flex-1 min-w-0 flex items-center gap-2 text-sm text-muted">
@@ -645,7 +645,13 @@ function Bubble({
   onToggleSelect?: () => void;
 }) {
   const isUser = msg.role === "user";
-  const parts = msg.content.split(/\n{2,}/).filter(Boolean);
+  // Split on blank lines into separate bubbles, but collapse the model's
+  // cosmetic single line-breaks inside a paragraph so the text flows and fills
+  // the bubble width (instead of fragmenting into a narrow, very tall column).
+  const parts = msg.content
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/[ \t]*\n[ \t]*/g, " ").trim())
+    .filter(Boolean);
   const isEmptyDraft = !isUser && msg.content === "" && streaming;
   const isTemp = msg.id.startsWith("tmp-") || msg.id.startsWith("draft-");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -654,7 +660,7 @@ function Bubble({
     <div
       onClick={forkMode && !isTemp ? onToggleSelect : undefined}
       className={cn(
-        "group flex items-end gap-2 max-w-[88%] sm:max-w-[78%] animate-slide-up",
+        "group flex items-end gap-2 max-w-[90%] sm:max-w-[80%] animate-slide-up",
         // RTL: user on the right (self-start), assistant on the left (self-end).
         isUser ? "self-start flex-row" : "self-end flex-row-reverse",
         forkMode && !isTemp && "cursor-pointer rounded-2xl -mx-1 px-1 transition-theme",
