@@ -93,6 +93,7 @@ export async function* streamChat(opts: {
 /**
  * One-shot plain-text generation. `search` (web grounding) uses the chat model
  * + Gemini's google_search when available; otherwise the lighter utility model.
+ * `images` (data URLs) attach to the prompt for vision (uses the chat model).
  */
 export async function generateText(opts: {
   system: string;
@@ -100,20 +101,28 @@ export async function generateText(opts: {
   temperature?: number;
   maxTokens?: number;
   search?: boolean;
+  images?: string[];
 }): Promise<string> {
-  const cfg = await roleCfg(opts.search ? "chat" : "utility");
+  // Vision needs the (multimodal) chat model; so does search grounding.
+  const cfg = await roleCfg(opts.search || opts.images?.length ? "chat" : "utility");
   if (isGemini(cfg.baseURL)) {
     return geminiGenerate(
-      { system: opts.system, prompt: opts.prompt, temperature: opts.temperature, maxTokens: opts.maxTokens, search: opts.search },
+      { system: opts.system, prompt: opts.prompt, temperature: opts.temperature, maxTokens: opts.maxTokens, search: opts.search, images: opts.images },
       cfg,
     );
   }
+  const userContent: OpenAI.Chat.Completions.ChatCompletionUserMessageParam["content"] = opts.images?.length
+    ? [
+        { type: "text", text: opts.prompt },
+        ...opts.images.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+      ]
+    : opts.prompt;
   const res = await withLlmKeyed(cfg.keys, (key) =>
     getClient(key, cfg.baseURL).chat.completions.create({
       model: cfg.model,
       messages: [
         { role: "system", content: opts.system },
-        { role: "user", content: opts.prompt },
+        { role: "user", content: userContent },
       ],
       temperature: opts.temperature ?? 0.6,
       max_tokens: opts.maxTokens ?? 600,

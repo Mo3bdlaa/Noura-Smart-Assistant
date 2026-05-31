@@ -32,6 +32,7 @@ const TYPE_META: Record<Conv["type"], { Icon: typeof Pin; label: string }> = {
 
 export function Sidebar(props: {
   assistantName: string;
+  assistantPhoto?: string | null;
   mood: MoodKind;
   moodLabel: string;
   isAdmin: boolean;
@@ -103,7 +104,7 @@ export function Sidebar(props: {
         onClick={() => go("/profile")}
         className="p-4 pt-safe flex items-center gap-3 border-b border-border text-start hover:bg-elevated/50 transition-theme"
       >
-        <Avatar name={props.assistantName} size="lg" mood={props.mood} />
+        <Avatar name={props.assistantName} photo={props.assistantPhoto} size="lg" mood={props.mood} />
         <div className="min-w-0">
           <div className="text-lg font-extrabold text-ink leading-tight truncate">
             {props.assistantName}

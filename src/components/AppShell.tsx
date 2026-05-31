@@ -16,6 +16,7 @@ type MoodKind = "happy" | "calm" | "upset";
  */
 export function AppShell({
   assistantName,
+  assistantPhoto,
   mood,
   moodLabel,
   isAdmin,
@@ -23,6 +24,7 @@ export function AppShell({
   children,
 }: {
   assistantName: string;
+  assistantPhoto?: string | null;
   mood: MoodKind;
   moodLabel: string;
   isAdmin: boolean;
@@ -37,6 +39,7 @@ export function AppShell({
       <div className="hidden lg:flex">
         <Sidebar
           assistantName={assistantName}
+          assistantPhoto={assistantPhoto}
           mood={mood}
           moodLabel={moodLabel}
           isAdmin={isAdmin}
@@ -61,6 +64,7 @@ export function AppShell({
         >
           <Sidebar
             assistantName={assistantName}
+            assistantPhoto={assistantPhoto}
             mood={mood}
             moodLabel={moodLabel}
             isAdmin={isAdmin}
@@ -80,7 +84,7 @@ export function AppShell({
               <Menu className="size-5" />
             </IconButton>
             <Link href="/profile" className="flex items-center gap-3 min-w-0 flex-1">
-              <Avatar name={assistantName} size="sm" mood={mood} />
+              <Avatar name={assistantName} photo={assistantPhoto} size="sm" mood={mood} />
               <div className="min-w-0">
                 <div className="font-bold text-ink leading-tight truncate">{assistantName}</div>
                 <div className="text-[11px] text-muted leading-tight truncate">{moodLabel}</div>

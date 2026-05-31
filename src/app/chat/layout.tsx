@@ -32,7 +32,7 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
   const ctx = await tenantForUser(user.id, user.role);
 
   const [assistant] = await db
-    .select({ name: assistants.name })
+    .select({ name: assistants.name, avatarUrl: assistants.avatarUrl })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -43,6 +43,7 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
   return (
     <AppShell
       assistantName={assistant?.name ?? "نورا"}
+      assistantPhoto={assistant?.avatarUrl ?? null}
       mood={moodKind(mood)}
       moodLabel={moodLabel(mood, locale)}
       isAdmin={user.role === "admin"}

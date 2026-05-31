@@ -82,7 +82,7 @@ export async function POST(req: Request) {
   });
 
   const [assistant] = await db
-    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon })
+    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon, appearance: assistants.appearance })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -124,6 +124,7 @@ export async function POST(req: Request) {
     mood,
     memories,
     userNotes: profile?.userNotes,
+    appearance: assistant?.appearance ?? null,
     time: timeContext(user.timezone),
     userDisplayName: user.displayName,
     initiatives,

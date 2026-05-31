@@ -17,18 +17,21 @@ const sizes: Record<Size, string> = {
  */
 export function Avatar({
   name,
+  photo,
   size = "md",
   mood,
   className,
 }: {
   name?: string;
+  /** explicit avatar image (data URL or path) — overrides the name fallback */
+  photo?: string | null;
   size?: Size;
   /** "happy" | "calm" | "upset" — tints the surrounding glow */
   mood?: "happy" | "calm" | "upset";
   className?: string;
 }) {
   const letter = name?.trim()?.[0];
-  const photo = name && isReservedName(name) ? "/noura-avatar.jpg" : null;
+  const src = photo?.trim() || (name && isReservedName(name) ? "/noura-avatar.jpg" : null);
   const ring =
     mood === "upset"
       ? "ring-2 ring-border-strong"
@@ -36,7 +39,7 @@ export function Avatar({
         ? "ring-2 ring-amber/60"
         : "ring-1 ring-border";
 
-  if (photo) {
+  if (src) {
     return (
       <span
         className={cn(
@@ -48,7 +51,7 @@ export function Avatar({
         aria-hidden
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo} alt="" className="absolute inset-0 size-full object-cover" />
+        <img src={src} alt="" className="absolute inset-0 size-full object-cover" />
       </span>
     );
   }

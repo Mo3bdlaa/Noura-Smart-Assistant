@@ -135,6 +135,8 @@ export async function geminiGenerate(
     temperature?: number;
     json?: boolean;
     maxTokens?: number;
+    /** data URLs attached to the prompt (vision) */
+    images?: string[];
     /** enable Google Search grounding (for digests/current info) */
     search?: boolean;
   },
@@ -151,9 +153,18 @@ export async function geminiGenerate(
   // responseMimeType json can't be combined with tools; only set it without search.
   if (opts.json && !opts.search) generationConfig.responseMimeType = "application/json";
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userParts: any[] = [{ text: opts.prompt }];
+  if (opts.images?.length) {
+    for (const u of opts.images) {
+      const inl = dataUrlToInline(u);
+      if (inl) userParts.push({ inlineData: inl });
+    }
+  }
+
   const base = {
     systemInstruction: { parts: [{ text: opts.system }] },
-    contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+    contents: [{ role: "user", parts: userParts }],
     safetySettings: SAFETY,
     generationConfig,
   };

@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   const images = (lastUser.meta as { images?: string[] } | null)?.images;
 
   const [assistant] = await db
-    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon })
+    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon, appearance: assistants.appearance })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -77,6 +77,7 @@ export async function POST(req: Request) {
     canon: (assistant?.canon as CanonEntry[]) ?? [],
     mood,
     memories,
+    appearance: assistant?.appearance ?? null,
     time: timeContext(user.timezone),
     userDisplayName: user.displayName,
     conversationType: conv.type,
