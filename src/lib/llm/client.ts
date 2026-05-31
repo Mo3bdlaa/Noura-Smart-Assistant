@@ -1,22 +1,27 @@
 import OpenAI from "openai";
 import { getLlmConfig, type LlmConfig } from "./config";
+import { getApiKeys, markCooling, pickKey } from "./keys";
+import { isQuotaError } from "./errors";
 
 /**
- * Single OpenAI-compatible client. Cached by (baseURL + key) so changing the
- * provider in settings transparently swaps the client. All calls funnel through
- * `withLlm` for a concurrency gate + exponential backoff on 429/5xx.
+ * OpenAI-compatible clients, cached per (baseURL + key) so a key pool can swap
+ * keys transparently. All calls funnel through `withLlmKeyed` for a concurrency
+ * gate + key rotation on quota errors + exponential backoff on 5xx.
  */
-const g = globalThis as unknown as { __nouraLlm?: OpenAI; __nouraLlmKey?: string };
+const g = globalThis as unknown as { __nouraLlmClients?: Map<string, OpenAI> };
+const clients = (g.__nouraLlmClients ??= new Map<string, OpenAI>());
 
-export async function getClient(): Promise<{ client: OpenAI; config: LlmConfig }> {
+export async function getClient(key?: string): Promise<{ client: OpenAI; config: LlmConfig }> {
   const config = await getLlmConfig();
-  if (!config.apiKey) throw new Error("LLM API key is not set (configure it in setup)");
-  const cacheKey = `${config.baseURL}|${config.apiKey}`;
-  if (g.__nouraLlmKey !== cacheKey || !g.__nouraLlm) {
-    g.__nouraLlm = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
-    g.__nouraLlmKey = cacheKey;
+  const apiKey = key ?? config.apiKey;
+  if (!apiKey) throw new Error("LLM API key is not set (configure it in setup)");
+  const cacheKey = `${config.baseURL}|${apiKey}`;
+  let client = clients.get(cacheKey);
+  if (!client) {
+    client = new OpenAI({ apiKey, baseURL: config.baseURL });
+    clients.set(cacheKey, client);
   }
-  return { client: g.__nouraLlm, config };
+  return { client, config };
 }
 
 // --- minimal concurrency gate ---
@@ -43,22 +48,45 @@ function isRetryable(err: unknown): boolean {
   return status === 429 || (status ?? 0) >= 500 || /429|rate|quota|unavailable|overloaded/i.test(msg);
 }
 
-/** Run an LLM call through the gate with exponential backoff retries. */
-export async function withLlm<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Run an LLM call with a key from the pool. On a quota error the key is cooled
+ * down and the next key is tried immediately; other transient errors back off.
+ */
+export async function withLlmKeyed<T>(fn: (key: string) => Promise<T>): Promise<T> {
+  const keys = await getApiKeys();
+  if (keys.length === 0) throw new Error("LLM API key is not set (configure it in setup)");
   await acquire();
   try {
-    let attempt = 0;
-    for (;;) {
+    const maxAttempts = keys.length + 3;
+    let backoff = 0;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const key = pickKey(keys);
       try {
-        return await fn();
+        return await fn(key);
       } catch (err) {
-        if (attempt >= retries || !isRetryable(err)) throw err;
-        const delay = 2 ** attempt * 1000 + Math.random() * 400;
-        await new Promise((r) => setTimeout(r, delay));
-        attempt++;
+        lastErr = err;
+        if (isQuotaError(err)) {
+          markCooling(key); // rotate to a different key right away
+          continue;
+        }
+        if (isRetryable(err)) {
+          await sleep(2 ** backoff * 1000 + Math.random() * 400);
+          backoff++;
+          continue;
+        }
+        throw err;
       }
     }
+    throw lastErr;
   } finally {
     release();
   }
+}
+
+/** Back-compat wrapper for callers that don't need the key (rotation still applies). */
+export function withLlm<T>(fn: () => Promise<T>): Promise<T> {
+  return withLlmKeyed(() => fn());
 }

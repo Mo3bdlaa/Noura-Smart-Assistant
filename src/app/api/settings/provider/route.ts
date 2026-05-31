@@ -10,8 +10,10 @@ import { setSetting } from "@/lib/settings";
  */
 const Body = z.object({
   baseUrl: z.string().trim().url().optional().or(z.literal("")),
-  apiKey: z.string().trim().optional(),
+  /** the key pool — one per line/comma; rotated on quota errors */
+  apiKeys: z.string().trim().max(8000).optional(),
   chatModel: z.string().trim().max(100).optional(),
+  utilityModel: z.string().trim().max(100).optional(),
   embedModel: z.string().trim().max(100).optional(),
 });
 
@@ -25,11 +27,20 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
-  const { baseUrl, apiKey, chatModel, embedModel } = parsed.data;
+  const { baseUrl, apiKeys, chatModel, utilityModel, embedModel } = parsed.data;
 
   if (baseUrl) await setSetting("llm_base_url", baseUrl);
-  if (apiKey) await setSetting("llm_api_key", apiKey);
+  // Normalise the key pool to one-per-line; empty string clears it.
+  if (apiKeys !== undefined) {
+    const cleaned = apiKeys
+      .split(/[\n,]+/)
+      .map((k) => k.trim())
+      .filter(Boolean)
+      .join("\n");
+    await setSetting("llm_api_keys", cleaned);
+  }
   if (chatModel) await setSetting("llm_chat_model", chatModel);
+  if (utilityModel) await setSetting("llm_utility_model", utilityModel);
   if (embedModel) await setSetting("llm_embed_model", embedModel);
 
   return NextResponse.json({ ok: true });

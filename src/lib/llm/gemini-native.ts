@@ -1,5 +1,5 @@
 import { getLlmConfig } from "./config";
-import { withLlm } from "./client";
+import { withLlmKeyed } from "./client";
 import type { ChatTurn } from "./chat";
 
 /**
@@ -63,7 +63,9 @@ export async function* geminiStream(opts: {
   temperature?: number;
 }): AsyncGenerator<string> {
   const cfg = await getLlmConfig();
-  const url = `${nativeBase(cfg.baseURL)}models/${cfg.chatModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(cfg.apiKey)}`;
+  const base = nativeBase(cfg.baseURL);
+  const urlFor = (key: string) =>
+    `${base}models/${cfg.chatModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`;
   const baseBody = {
     systemInstruction: { parts: [{ text: opts.system }] },
     contents: toContents(opts.history, opts.images),
@@ -76,8 +78,8 @@ export async function* geminiStream(opts: {
   };
 
   const open = (withSearch: boolean) =>
-    withLlm(async () => {
-      const r = await fetch(url, {
+    withLlmKeyed(async (key) => {
+      const r = await fetch(urlFor(key), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // google_search lets her look things up when she needs current info.
@@ -135,7 +137,8 @@ export async function geminiGenerate(opts: {
 }): Promise<string> {
   const cfg = await getLlmConfig();
   const model = opts.model || cfg.chatModel;
-  const url = `${nativeBase(cfg.baseURL)}models/${model}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
+  const urlFor = (key: string) =>
+    `${nativeBase(cfg.baseURL)}models/${model}:generateContent?key=${encodeURIComponent(key)}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const generationConfig: any = {
     temperature: opts.temperature ?? 0.4,
@@ -153,8 +156,8 @@ export async function geminiGenerate(opts: {
   };
 
   const call = (withSearch: boolean) =>
-    withLlm(async () => {
-      const r = await fetch(url, {
+    withLlmKeyed(async (key) => {
+      const r = await fetch(urlFor(key), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(withSearch ? { ...base, tools: [{ google_search: {} }] } : base),

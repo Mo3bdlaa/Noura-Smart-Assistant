@@ -5,6 +5,7 @@ import { tenantForUser } from "@/lib/db/tenant";
 import { db } from "@/lib/db/client";
 import { assistants } from "@/lib/db/schema";
 import { getLlmConfig } from "@/lib/llm/config";
+import { getApiKeys } from "@/lib/llm/keys";
 import { SettingsForm } from "@/components/SettingsForm";
 
 export default async function SettingsPage() {
@@ -19,6 +20,7 @@ export default async function SettingsPage() {
 
   const isAdmin = user.role === "admin";
   const llm = isAdmin ? await getLlmConfig() : null;
+  const keyCount = isAdmin ? (await getApiKeys()).length : 0;
 
   return (
     <SettingsForm
@@ -29,7 +31,15 @@ export default async function SettingsPage() {
         assistantName: assistant?.name ?? "نورا",
       }}
       provider={
-        llm ? { baseUrl: llm.baseURL, chatModel: llm.chatModel, embedModel: llm.embedModel } : null
+        llm
+          ? {
+              baseUrl: llm.baseURL,
+              chatModel: llm.chatModel,
+              utilityModel: llm.utilityModel,
+              embedModel: llm.embedModel,
+              keyCount,
+            }
+          : null
       }
     />
   );

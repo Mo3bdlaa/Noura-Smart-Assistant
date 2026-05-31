@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Cpu, Languages, LogOut, Lock, Moon, Palette, Settings, Smartphone, Sun, SunMoon, User } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
-import { Input, Field } from "@/components/ui/Input";
+import { Input, Textarea, Field } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { useToast } from "@/components/ui/Toast";
@@ -32,7 +32,13 @@ export function SettingsForm({
 }: {
   isAdmin: boolean;
   initial: { displayName: string; timezone: string; assistantName: string };
-  provider?: { baseUrl: string; chatModel: string; embedModel: string } | null;
+  provider?: {
+    baseUrl: string;
+    chatModel: string;
+    utilityModel: string;
+    embedModel: string;
+    keyCount: number;
+  } | null;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -56,8 +62,9 @@ export function SettingsForm({
   const [savingPw, setSavingPw] = useState(false);
   const [prov, setProv] = useState({
     baseUrl: provider?.baseUrl ?? "",
-    apiKey: "",
+    apiKeys: "",
     chatModel: provider?.chatModel ?? "",
+    utilityModel: provider?.utilityModel ?? "",
     embedModel: provider?.embedModel ?? "",
   });
   const [savingProv, setSavingProv] = useState(false);
@@ -77,7 +84,8 @@ export function SettingsForm({
         return;
       }
       toast(t("إعدادات المزوّد اتحفظت ✅", "Provider settings saved ✅"), "success");
-      setProv((p) => ({ ...p, apiKey: "" }));
+      setProv((p) => ({ ...p, apiKeys: "" }));
+      router.refresh();
     } finally {
       setSavingProv(false);
     }
@@ -268,8 +276,10 @@ export function SettingsForm({
           <Card className="p-5">
             <SectionTitle icon={<Cpu className="size-4" />} title={t("مزوّد الذكاء (Provider)", "AI provider")} />
             <p className="text-sm text-muted mt-2 leading-relaxed">
-              أي مزوّد متوافق مع OpenAI (Gemini الافتراضي، أو OpenAI / Groq / OpenRouter / Ollama
-              محلي...). سيب المفتاح فاضي عشان تبقّي على الحالي.
+              {t(
+                "أي مزوّد متوافق مع OpenAI (Gemini الافتراضي، أو OpenAI / Groq / OpenRouter / Ollama محلي...).",
+                "Any OpenAI-compatible provider (Gemini by default, or OpenAI / Groq / OpenRouter / local Ollama...).",
+              )}
             </p>
             <form onSubmit={saveProvider} className="space-y-4 mt-4">
               <Field label="Base URL">
@@ -280,16 +290,25 @@ export function SettingsForm({
                   onChange={(e) => setProv((p) => ({ ...p, baseUrl: e.target.value }))}
                 />
               </Field>
-              <Field label="API Key" hint="مخزّن مشفّر؛ سيبه فاضي عشان متغيّروش">
-                <Input
+              <Field
+                label={t("المفاتيح (مفتاح في كل سطر)", "API keys (one per line)")}
+                hint={t(
+                  `${provider?.keyCount ?? 0} مفتاح نشِط · بيتبدّل بينهم لو واحد وصل حده · سيبه فاضي عشان متغيّرش`,
+                  `${provider?.keyCount ?? 0} active · rotated when one is rate-limited · leave empty to keep`,
+                )}
+              >
+                <Textarea
                   dir="ltr"
-                  type="password"
-                  placeholder="••••••••"
-                  value={prov.apiKey}
-                  onChange={(e) => setProv((p) => ({ ...p, apiKey: e.target.value }))}
+                  rows={3}
+                  placeholder={"AIza...\nAIza...\nsk-or-..."}
+                  value={prov.apiKeys}
+                  onChange={(e) => setProv((p) => ({ ...p, apiKeys: e.target.value }))}
                 />
               </Field>
-              <Field label="موديل الشات">
+              <Field
+                label={t("موديل الشات", "Chat model")}
+                hint={t("الجودة الأعلى للرد", "highest quality for replies")}
+              >
                 <Input
                   dir="ltr"
                   placeholder="gemini-2.5-flash"
@@ -297,7 +316,18 @@ export function SettingsForm({
                   onChange={(e) => setProv((p) => ({ ...p, chatModel: e.target.value }))}
                 />
               </Field>
-              <Field label="موديل الـ Embeddings" hint="لازم يدعم 768 بُعد">
+              <Field
+                label={t("موديل الأدوات (utility)", "Utility model")}
+                hint={t("للعنوان/التحليل/المهام — أخف وأرخص", "titles/analysis/tasks — lighter & cheaper")}
+              >
+                <Input
+                  dir="ltr"
+                  placeholder="gemini-2.5-flash-lite"
+                  value={prov.utilityModel}
+                  onChange={(e) => setProv((p) => ({ ...p, utilityModel: e.target.value }))}
+                />
+              </Field>
+              <Field label={t("موديل الـ Embeddings", "Embeddings model")} hint={t("لازم يدعم 768 بُعد", "must support 768 dims")}>
                 <Input
                   dir="ltr"
                   placeholder="gemini-embedding-001"
@@ -306,7 +336,7 @@ export function SettingsForm({
                 />
               </Field>
               <Button type="submit" variant="outline" loading={savingProv}>
-                حفظ المزوّد
+                {t("حفظ المزوّد", "Save provider")}
               </Button>
             </form>
           </Card>

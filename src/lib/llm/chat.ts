@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import { getClient, withLlm } from "./client";
+import { getClient, withLlmKeyed } from "./client";
 import { getLlmConfig } from "./config";
 import { geminiGenerate, geminiStream } from "./gemini-native";
 
@@ -67,16 +67,16 @@ export async function* streamChat(opts: {
     return;
   }
 
-  const { client } = await getClient();
-  const stream = (await withLlm(() =>
-    client.chat.completions.create({
+  const stream = (await withLlmKeyed(async (key) => {
+    const { client } = await getClient(key);
+    return client.chat.completions.create({
       model: config.chatModel,
       messages: toMessages(opts.system, opts.history, opts.images),
       temperature: opts.temperature ?? 0.9,
       max_tokens: 1200,
       stream: true,
-    }),
-  )) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>;
+    });
+  })) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>;
 
   for await (const chunk of stream) {
     const text = chunk.choices?.[0]?.delta?.content;
@@ -95,18 +95,18 @@ export async function generateText(opts: {
   if (isGemini(config.baseURL)) {
     return geminiGenerate({ ...opts, model: config.utilityModel });
   }
-  const { client } = await getClient();
-  const res = await withLlm(() =>
-    client.chat.completions.create({
-      model: config.chatModel,
+  const res = await withLlmKeyed(async (key) => {
+    const { client } = await getClient(key);
+    return client.chat.completions.create({
+      model: config.utilityModel,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.prompt },
       ],
       temperature: opts.temperature ?? 0.6,
       max_tokens: opts.maxTokens ?? 600,
-    }),
-  );
+    });
+  });
   return res.choices[0]?.message?.content?.trim() ?? "";
 }
 
@@ -121,17 +121,17 @@ export async function generateJson<T = unknown>(opts: {
     const text = await geminiGenerate({ ...opts, json: true, model: config.utilityModel });
     return parseJsonLoose<T>(text);
   }
-  const { client } = await getClient();
-  const res = await withLlm(() =>
-    client.chat.completions.create({
-      model: config.chatModel,
+  const res = await withLlmKeyed(async (key) => {
+    const { client } = await getClient(key);
+    return client.chat.completions.create({
+      model: config.utilityModel,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.prompt },
       ],
       temperature: opts.temperature ?? 0.4,
       response_format: { type: "json_object" },
-    }),
-  );
+    });
+  });
   return parseJsonLoose<T>(res.choices[0]?.message?.content);
 }
