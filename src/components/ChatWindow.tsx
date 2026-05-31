@@ -660,9 +660,13 @@ function Bubble({
     <div
       onClick={forkMode && !isTemp ? onToggleSelect : undefined}
       className={cn(
-        "group flex items-end gap-2 max-w-[90%] sm:max-w-[80%] animate-slide-up",
+        "group flex items-end gap-2 animate-slide-up",
         // RTL: user on the right (self-start), assistant on the left (self-end).
-        isUser ? "self-start flex-row" : "self-end flex-row-reverse",
+        // The assistant row also carries the avatar (size-8) + gap, so give it
+        // that 2.5rem back so her bubble can grow as wide as the user's.
+        isUser
+          ? "self-start flex-row max-w-[88%] sm:max-w-[80%]"
+          : "self-end flex-row-reverse max-w-[calc(88%+2.5rem)] sm:max-w-[calc(80%+2.5rem)]",
         forkMode && !isTemp && "cursor-pointer rounded-2xl -mx-1 px-1 transition-theme",
         forkMode && selected && "bg-accent-soft/60 ring-1 ring-accent",
       )}
