@@ -37,12 +37,25 @@ async function runTask(task: Task): Promise<void> {
     .limit(1);
   if (!user || !assistant) return;
 
-  const [main] = await db
-    .select({ id: conversations.id })
-    .from(conversations)
-    .where(and(eq(conversations.assistantId, task.assistantId), eq(conversations.type, "main")))
-    .limit(1);
-  if (!main) return;
+  // Deliver into the conversation the task was set in; fall back to main.
+  let targetConversationId: string | null = null;
+  if (task.conversationId) {
+    const [c] = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(eq(conversations.id, task.conversationId))
+      .limit(1);
+    targetConversationId = c?.id ?? null;
+  }
+  if (!targetConversationId) {
+    const [main] = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(and(eq(conversations.assistantId, task.assistantId), eq(conversations.type, "main")))
+      .limit(1);
+    targetConversationId = main?.id ?? null;
+  }
+  if (!targetConversationId) return;
 
   const en = user.locale === "en";
   const mood = await readMood(task.assistantId);
@@ -73,7 +86,7 @@ async function runTask(task: Task): Promise<void> {
   if (!text.trim()) return; // don't post empties / quota failures
 
   await db.insert(messages).values({
-    conversationId: main.id,
+    conversationId: targetConversationId,
     userId: task.userId,
     role: "assistant",
     content: text.trim(),

@@ -386,7 +386,7 @@ export function ChatWindow({
         </div>
       </div>
 
-      <div className="border-t border-border bg-surface/80 backdrop-blur-md p-3 pb-safe">
+      <div className="shrink-0 border-t border-border bg-surface/80 backdrop-blur-md p-3 pb-safe">
         <div className="max-w-3xl mx-auto space-y-2">
           {images.length > 0 && (
             <div className="flex gap-2 flex-wrap">

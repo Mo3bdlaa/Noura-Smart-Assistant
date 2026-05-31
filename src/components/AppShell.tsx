@@ -31,7 +31,7 @@ export function AppShell({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-bg">
+    <div className="fixed inset-x-0 top-0 h-dvh flex overflow-hidden bg-bg">
       {/* Desktop sidebar */}
       <div className="hidden lg:flex">
         <Sidebar

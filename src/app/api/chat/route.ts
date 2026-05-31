@@ -27,7 +27,7 @@ import { maybeUpdateProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 import { getLocale } from "@/lib/i18n";
 import { friendlyError } from "@/lib/llm/errors";
-import { detectTask } from "@/lib/tasks/detect";
+import { detectTasks } from "@/lib/tasks/detect";
 import { createTask } from "@/lib/tasks/store";
 import { runDueTasks } from "@/lib/tasks/run";
 
@@ -136,11 +136,12 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("drainJobs failed", e);
     }
-    // Detect a scheduling request in this message and create the task.
+    // Detect scheduling requests in this message — a message may create several
+    // tasks (e.g. morning + night). They're tied to THIS conversation.
     if (conv.type !== "incognito") {
       try {
-        const task = await detectTask({ text: message, timezone: user.timezone });
-        if (task) await createTask(ctx, task);
+        const newTasks = await detectTasks({ text: message, timezone: user.timezone });
+        for (const tk of newTasks) await createTask(ctx, { ...tk, conversationId });
       } catch (e) {
         console.error("task detect failed", e);
       }

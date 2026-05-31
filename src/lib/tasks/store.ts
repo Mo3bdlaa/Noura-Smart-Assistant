@@ -9,6 +9,7 @@ export type NewTask = {
   instruction?: string | null;
   nextRunAt: Date;
   recurrence?: "once" | "daily" | "weekly";
+  conversationId?: string | null;
 };
 
 export async function createTask(ctx: TenantContext, input: NewTask): Promise<Task> {
@@ -17,6 +18,7 @@ export async function createTask(ctx: TenantContext, input: NewTask): Promise<Ta
     .values({
       userId: ctx.userId,
       assistantId: ctx.assistantId,
+      conversationId: input.conversationId ?? null,
       kind: input.kind,
       title: input.title,
       instruction: input.instruction ?? null,

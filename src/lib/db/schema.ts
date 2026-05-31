@@ -326,6 +326,11 @@ export const tasks = pgTable(
     assistantId: uuid("assistant_id")
       .notNull()
       .references(() => assistants.id, { onDelete: "cascade" }),
+    // The conversation the task was set in — proactive messages go there, and
+    // deleting that conversation cascade-deletes its tasks.
+    conversationId: uuid("conversation_id").references(() => conversations.id, {
+      onDelete: "cascade",
+    }),
     kind: text("kind", { enum: ["remind", "digest", "nudge"] }).notNull(),
     title: text("title").notNull(),
     instruction: text("instruction"), // for digest: what to research/summarize

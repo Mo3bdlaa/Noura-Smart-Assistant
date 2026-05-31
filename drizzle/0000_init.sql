@@ -331,3 +331,6 @@ CREATE TABLE IF NOT EXISTS "personality_profiles" (
 );
 DO $$ BEGIN ALTER TABLE "personality_profiles" ADD CONSTRAINT "pp_assistant_fk" FOREIGN KEY ("assistant_id") REFERENCES "assistants"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN ALTER TABLE "personality_profiles" ADD CONSTRAINT "pp_user_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
+--> statement-breakpoint
+ALTER TABLE "tasks" ADD COLUMN IF NOT EXISTS "conversation_id" uuid;
+DO $$ BEGIN ALTER TABLE "tasks" ADD CONSTRAINT "tasks_conversation_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "conversations"("id") ON DELETE cascade; EXCEPTION WHEN duplicate_object THEN null; END $$;
