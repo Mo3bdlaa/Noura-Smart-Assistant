@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Check,
+  GitBranch,
   Glasses,
   ImagePlus,
   MessageCircleHeart,
@@ -326,6 +328,60 @@ export function ChatWindow({
     router.refresh();
   }
 
+  // --- fork: lift a slice of the chat out into its own side conversation ---
+  // Only on the main timeline; side/incognito stay as they are.
+  const canFork = conversationType === "main";
+  const [forkMode, setForkMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [forking, setForking] = useState(false);
+
+  function startFork(id: string) {
+    setForkMode(true);
+    setSelected(new Set([id]));
+  }
+  function toggleSelect(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function cancelFork() {
+    setForkMode(false);
+    setSelected(new Set());
+  }
+  async function doFork() {
+    const ids = messages
+      .filter(
+        (m) =>
+          selected.has(m.id) &&
+          !m.sideCardId &&
+          !m.id.startsWith("tmp-") &&
+          !m.id.startsWith("draft-"),
+      )
+      .map((m) => m.id);
+    if (ids.length === 0 || forking) return;
+    setForking(true);
+    try {
+      const res = await fetch("/api/chat/fork", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceConversationId: conversationId, messageIds: ids }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "fork failed");
+      }
+      const data = await res.json();
+      toast(t("اتنقلت لمحادثة جانبية ✨", "Moved into a side chat ✨"), "success");
+      router.push(`/chat/${data.conversation.id}`);
+    } catch {
+      toast(t("مش قادرة أنقلها دلوقتي، جرّب تاني", "Couldn't move it now, try again"), "error");
+      setForking(false);
+    }
+  }
+
   const banner = TYPE_BANNER[conversationType];
   // The most recent user message — that's where the regenerate button lives.
   let lastUserIdx = -1;
@@ -398,6 +454,11 @@ export function ChatWindow({
                   onReact={(e) => react(m.id, e)}
                   canRegenerate={i === lastUserIdx}
                   onRegenerate={regenerate}
+                  canFork={canFork}
+                  onFork={() => startFork(m.id)}
+                  forkMode={forkMode}
+                  selected={selected.has(m.id)}
+                  onToggleSelect={() => toggleSelect(m.id)}
                 />
               ),
             )
@@ -406,6 +467,25 @@ export function ChatWindow({
       </div>
 
       <div className="shrink-0 border-t border-border bg-surface/80 backdrop-blur-md p-3 pb-safe">
+        {forkMode ? (
+          <div className="max-w-3xl mx-auto flex items-center gap-2 animate-slide-up">
+            <div className="flex-1 min-w-0 flex items-center gap-2 text-sm text-muted">
+              <GitBranch className="size-4 shrink-0 text-accent" />
+              <span className="truncate">
+                {t(
+                  `اختار الرسائل اللي تتنقل لمحادثة جانبية (${selected.size})`,
+                  `Pick messages to move into a side chat (${selected.size})`,
+                )}
+              </span>
+            </div>
+            <Button variant="ghost" onClick={cancelFork} disabled={forking}>
+              {t("إلغاء", "Cancel")}
+            </Button>
+            <Button loading={forking} disabled={selected.size === 0} onClick={doFork}>
+              {t("انقل", "Move")} {selected.size > 0 ? `(${selected.size})` : ""}
+            </Button>
+          </div>
+        ) : (
         <div className="max-w-3xl mx-auto space-y-2">
           {images.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -489,6 +569,7 @@ export function ChatWindow({
             </button>
           </div>
         </div>
+        )}
       </div>
 
       {/* scenario editor (incognito) */}
@@ -543,6 +624,11 @@ function Bubble({
   onReact,
   canRegenerate,
   onRegenerate,
+  canFork,
+  onFork,
+  forkMode,
+  selected,
+  onToggleSelect,
 }: {
   msg: Msg;
   assistantName: string;
@@ -552,6 +638,11 @@ function Bubble({
   onReact: (emoji: string) => void;
   canRegenerate?: boolean;
   onRegenerate?: () => void;
+  canFork?: boolean;
+  onFork?: () => void;
+  forkMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const isUser = msg.role === "user";
   const parts = msg.content.split(/\n{2,}/).filter(Boolean);
@@ -561,12 +652,25 @@ function Bubble({
 
   return (
     <div
+      onClick={forkMode && !isTemp ? onToggleSelect : undefined}
       className={cn(
         "group flex items-end gap-2 max-w-[88%] sm:max-w-[78%] animate-slide-up",
         // RTL: user on the right (self-start), assistant on the left (self-end).
         isUser ? "self-start flex-row" : "self-end flex-row-reverse",
+        forkMode && !isTemp && "cursor-pointer rounded-2xl -mx-1 px-1 transition-theme",
+        forkMode && selected && "bg-accent-soft/60 ring-1 ring-accent",
       )}
     >
+      {forkMode && !isTemp && (
+        <span
+          className={cn(
+            "shrink-0 self-center size-5 grid place-items-center rounded-full border transition-theme",
+            selected ? "bg-accent border-accent text-on-accent" : "border-border text-transparent",
+          )}
+        >
+          <Check className="size-3.5" />
+        </span>
+      )}
       {!isUser && <Avatar name={assistantName} size="sm" mood={assistantMood} className="mb-0.5" />}
 
       <div className="relative space-y-1.5 min-w-0">
@@ -610,11 +714,16 @@ function Bubble({
         )}
       </div>
 
-      {!isEmptyDraft && !isTemp && (
+      {!isEmptyDraft && !isTemp && !forkMode && (
         <div className="relative self-center flex items-center">
           {canRegenerate && !streaming && onRegenerate && (
             <IconButton size="sm" onClick={onRegenerate} aria-label="إعادة توليد" title="Regenerate">
               <RotateCcw className="size-3.5" />
+            </IconButton>
+          )}
+          {canFork && onFork && (
+            <IconButton size="sm" subtle onClick={onFork} aria-label="نقل لمحادثة جانبية" title="Fork">
+              <GitBranch className="size-3.5" />
             </IconButton>
           )}
           <IconButton size="sm" subtle onClick={() => setPickerOpen((o) => !o)} aria-label="تفاعل">

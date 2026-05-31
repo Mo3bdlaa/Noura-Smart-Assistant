@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { conversations, messages, type ConversationType } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant";
@@ -107,6 +107,15 @@ export async function deleteConversation(ctx: TenantContext, id: string) {
   await db
     .delete(conversations)
     .where(and(eq(conversations.id, id), eq(conversations.userId, ctx.userId)));
+}
+
+/** Move messages (the user's own) into another conversation — used by fork. */
+export async function moveMessages(ctx: TenantContext, ids: string[], targetConversationId: string) {
+  if (!ids.length) return;
+  await db
+    .update(messages)
+    .set({ conversationId: targetConversationId })
+    .where(and(inArray(messages.id, ids), eq(messages.userId, ctx.userId)));
 }
 
 /** Recent turns of a conversation (oldest→newest), excluding system messages. */
