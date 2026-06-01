@@ -31,6 +31,7 @@ type TimelineData = {
   assistantMessages: number;
   mood: MoodPoint[];
   milestones: Milestone[];
+  closeness: number;
 };
 
 export default function TimelinePage() {
@@ -78,6 +79,7 @@ export default function TimelinePage() {
               <Stat n={data.userMessages} label={t("منك", "from you")} />
               <Stat n={data.assistantMessages} label={t("منها", "from her")} />
             </div>
+            <Bond closeness={data.closeness} t={t} />
           </Card>
 
           {/* mood over time */}
@@ -102,6 +104,34 @@ export default function TimelinePage() {
         </>
       )}
     </PageShell>
+  );
+}
+
+function Bond({ closeness, t }: { closeness: number; t: (a: string, b: string) => string }) {
+  const pct = Math.round(closeness * 100);
+  const stage =
+    closeness < 0.28
+      ? t("لسه بتتعرفوا", "Getting to know each other")
+      : closeness < 0.55
+        ? t("مرتاحين لبعض", "Comfortable together")
+        : closeness < 0.8
+          ? t("قريبين فعلاً", "Genuinely close")
+          : t("علاقة عميقة", "Deeply bonded");
+  return (
+    <div className="mt-5 pt-4 border-t border-border">
+      <div className="flex items-center justify-between text-xs mb-1.5">
+        <span className="text-muted flex items-center gap-1">
+          <Heart className="size-3.5 text-accent" /> {t("قرب القلب", "Your bond")}
+        </span>
+        <span className="font-semibold text-accent">{stage}</span>
+      </div>
+      <div className="h-2 rounded-full bg-elevated overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-amber to-accent transition-all duration-700"
+          style={{ width: `${Math.max(4, pct)}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

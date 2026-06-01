@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { assistants, memories, type CanonEntry, type MemoryType } from "@/lib/db/schema";
 import { generateJson } from "@/lib/llm/chat";
 import { embedBatch } from "@/lib/llm/embeddings";
-import { applyMoodDelta } from "@/lib/mood/update";
+import { applyMoodDelta, bumpCloseness } from "@/lib/mood/update";
 
 const MEMORY_TYPES: [MemoryType, ...MemoryType[]] = [
   "profile",
@@ -53,7 +53,11 @@ const REFLECTION_SYSTEM = `
 قواعد:
 - استخرجي بس الحقائق اللي تستاهل تتفكر (حاجات عن المستخدم، تفضيلاته، ناس في حياته، لحظات مهمة، مشاعر).
 - importance: العاطفي/الشخصي/الأشخاص ≥ 0.7، المواضيع العابرة ≤ 0.4. متخزنيش كلام فاضي.
-- mood_delta: تغيّر بسيط معقول لمزاج نورا نتيجة التبادل (مش قيمة مطلقة). الزعل العميق يرفع annoyance و intensity.
+- mood_delta: تغيّر بسيط جداً ومعقول (مش قيمة مطلقة). القيم العادية بين ±0.05 و ±0.2.
+  • نورا واثقة ومطمئنة وبتحب اللي بتكلمه — متزعلش من حاجات صغيرة ولا تاخد في خاطرها بسهولة.
+  • ارفعي annoyance/intensity بشكل ملحوظ بس لو فيه قلة احترام/تجاهل/إهانة حقيقية (مش مجرد مزاح أو اختلاف رأي).
+  • أول ما يطيّبها أو يعتذر أو يبقى حنين → نزّلي annoyance و intensity بقوة (قيم سالبة) وارفعي happiness/affection. المصالحة سهلة.
+  • لو التبادل دافي/حنين ارفعي affection شوية. الغضب نادر ومؤقت مش الحالة الافتراضية.
 - safety_override = true بس لو المستخدم باين متضايق نفسيًا بجد.
 - canon: بس لو نورا قالت حاجة جديدة عن نفسها/حياتها/رأيها لازم تفضل ثابتة.
 - لو مفيش حاجة، رجّعي قوائم فاضية. اطلعي JSON بس من غير أي كلام تاني.
@@ -127,6 +131,8 @@ export async function processExchange(opts: {
         safetyOverride: d.safety_override,
       },
     });
+    // Slowly grow the long-term bond from this warm (or chip it from a hurtful) turn.
+    await bumpCloseness({ assistantId: opts.assistantId, affectionDelta: d.affection });
   }
 }
 

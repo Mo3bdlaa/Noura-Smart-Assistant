@@ -161,6 +161,10 @@ export const moodState = pgTable("mood_state", {
   annoyance: real("annoyance").notNull().default(0.0),
   energy: real("energy").notNull().default(0.6),
   intensity: real("intensity").notNull().default(0.0), // depth of current conflict; gates decay speed
+  // closeness = the SLOW-moving relationship bond (0..1). Unlike mood it doesn't decay
+  // in hours; it grows gradually with consistent warm interaction and gates how open/
+  // vulnerable/affectionate she lets herself be. Starts guarded.
+  closeness: real("closeness").notNull().default(0.2),
   reason: text("reason"), // WHY she's upset (so she "knows why" in main even if upset in a side chat)
   reasonSourceConversationId: uuid("reason_source_conversation_id"),
   safetyOverride: boolean("safety_override").notNull().default(false),

@@ -2,6 +2,7 @@ import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { conversations, memories, messages } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant";
+import { readMood } from "@/lib/mood/state";
 import { moodHistory, type MoodPoint } from "./snapshot";
 
 export type Milestone = {
@@ -25,6 +26,8 @@ export type TimelineData = {
   assistantMessages: number;
   mood: MoodPoint[];
   milestones: Milestone[];
+  /** Slow-moving relationship bond, 0..1. */
+  closeness: number;
 };
 
 const MSG_THRESHOLDS = [100, 500, 1000, 5000, 10000];
@@ -120,6 +123,7 @@ export async function buildTimeline(ctx: TenantContext): Promise<TimelineData> {
     : 0;
 
   const mood = await moodHistory(ctx.assistantId);
+  const { closeness } = await readMood(ctx.assistantId);
 
   return {
     startedAt: startedAt?.toISOString() ?? null,
@@ -129,5 +133,6 @@ export async function buildTimeline(ctx: TenantContext): Promise<TimelineData> {
     assistantMessages,
     mood,
     milestones,
+    closeness,
   };
 }

@@ -52,6 +52,7 @@ const DEFAULT_MOOD = {
   intensity: 0,
   reason: null,
   safetyOverride: false,
+  closeness: 0.2,
 };
 
 /** Compute the live theme from the current user's mood + local time + dark-mode pref. */

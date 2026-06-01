@@ -47,7 +47,7 @@ export async function applyMoodDelta(opts: {
   await db
     .update(moodState)
     .set({
-      ...next,
+      ...next, // note: closeness is intentionally NOT in `next` — it never decays here
       reason,
       reasonSourceConversationId: keepReason
         ? (opts.reasonSourceConversationId ?? row.reasonSourceConversationId)
@@ -55,5 +55,37 @@ export async function applyMoodDelta(opts: {
       safetyOverride: d.safetyOverride ?? false,
       lastUpdatedAt: now,
     })
+    .where(eq(moodState.assistantId, opts.assistantId));
+}
+
+/**
+ * Nudge the long-term closeness bond. Called once per (non-incognito) exchange.
+ * Grows slowly and with diminishing returns near 1, so depth is genuinely earned
+ * over many warm interactions. A clearly warm turn grows it a bit more; a hurtful
+ * one can chip it slightly. It is deliberately hard to move per turn.
+ */
+export async function bumpCloseness(opts: {
+  assistantId: string;
+  /** the turn's affection delta (-1..1), used to scale growth */
+  affectionDelta?: number;
+}) {
+  const [row] = await db
+    .select({ closeness: moodState.closeness })
+    .from(moodState)
+    .where(eq(moodState.assistantId, opts.assistantId))
+    .limit(1);
+  if (!row) return;
+
+  const cur = row.closeness ?? 0.2;
+  const aff = opts.affectionDelta ?? 0;
+  const headroom = 1 - cur; // diminishing returns near 1
+  let step = 0.006 * headroom; // slow climb over a few hundred warm turns
+  if (aff > 0.05) step += 0.01 * headroom; // a warm exchange helps a little more
+  if (aff < -0.15) step -= 0.015; // a genuinely hurtful turn sets it back slightly
+  const nextCloseness = clamp01(cur + step);
+
+  await db
+    .update(moodState)
+    .set({ closeness: nextCloseness })
     .where(eq(moodState.assistantId, opts.assistantId));
 }
