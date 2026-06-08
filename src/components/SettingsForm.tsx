@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Field } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { NotificationsCard } from "@/components/NotificationsCard";
+import { ApiKeyManager } from "@/components/ApiKeyManager";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
@@ -306,21 +307,9 @@ export function SettingsForm({
                   onChange={(e) => setProv((p) => ({ ...p, baseUrl: e.target.value }))}
                 />
               </Field>
-              <Field
-                label={t("المفاتيح (مفتاح في كل سطر)", "API keys (one per line)")}
-                hint={t(
-                  `${provider?.keyCount ?? 0} مفتاح نشِط · بيتبدّل بينهم لو واحد وصل حده · سيبه فاضي عشان متغيّرش`,
-                  `${provider?.keyCount ?? 0} active · rotated when one is rate-limited · leave empty to keep`,
-                )}
-              >
-                <Textarea
-                  dir="ltr"
-                  rows={3}
-                  placeholder={"AIza...\nAIza...\nsk-or-..."}
-                  value={prov.apiKeys}
-                  onChange={(e) => setProv((p) => ({ ...p, apiKeys: e.target.value }))}
-                />
-              </Field>
+              <div className="rounded-xl border border-border p-3">
+                <ApiKeyManager />
+              </div>
               <Field
                 label={t("موديل الشات", "Chat model")}
                 hint={t("الجودة الأعلى للرد", "highest quality for replies")}
