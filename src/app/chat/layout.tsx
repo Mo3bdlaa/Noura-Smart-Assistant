@@ -16,20 +16,51 @@ function moodKind(m: MoodSnapshot): "happy" | "calm" | "upset" {
 }
 
 function moodLabel(m: MoodSnapshot, locale: Locale): string {
-  const t = (ar: string, en: string) => (locale === "en" ? en : ar);
-  // First match wins — ordered from most to least overriding.
-  if (m.safetyOverride) return t("قلقانة عليك 🫂", "Worried about you 🫂");
+  const en = locale === "en";
+  const pick = (ar: string[], enArr: string[]) => {
+    const arr = en ? enArr : ar;
+    return arr[Math.floor(Math.random() * arr.length)]!;
+  };
+  // First matching bucket wins; a random variant within it keeps her alive.
+  if (m.safetyOverride)
+    return pick(
+      ["قلقانة عليك 🫂", "خايفة عليك 🥺", "قلبي معاك دلوقتي 💗", "مش مطمنة عليك 🫂"],
+      ["Worried about you 🫂", "Here for you 💗", "Concerned for you 🥺"],
+    );
+  if (m.annoyance > 0.45 && m.intensity > 0.6)
+    return pick(
+      ["زعلانة منك 😔", "واخدة في خاطري 💔", "متضايقة منك بجد 😔"],
+      ["Upset with you 😔", "Hurt a little 💔"],
+    );
   if (m.annoyance > 0.45)
-    return m.intensity > 0.6 ? t("زعلانة منك 😔", "Upset with you 😔") : t("متضايقة شوية 😒", "A bit annoyed 😒");
-  if (m.energy < 0.32) return t("تعبانة وناعسة 🥱", "Tired & sleepy 🥱");
-  if (m.affection > 0.72 && m.closeness > 0.6) return t("قريبة منك وحاسّة بدفا 🥰", "Close & warm with you 🥰");
-  if (m.affection > 0.72) return t("مبسوطة بيك 🥰", "Happy with you 🥰");
-  if (m.happiness > 0.7 && m.energy > 0.65) return t("فايقة ومبسوطة ✨", "Bright & cheerful ✨");
-  if (m.happiness > 0.68) return t("رايقة ومبسوطة ☀️", "Cheerful & content ☀️");
-  if (m.closeness < 0.28) return t("لسه بنتعرف على بعض 🙂", "Still getting to know you 🙂");
-  if (m.happiness < 0.4) return t("مزاجها متعكنن شوية 😐", "In a bit of a mood 😐");
-  if (m.energy > 0.7) return t("نشيطة ومركّزة معاك 🌟", "Lively & focused 🌟");
-  return t("موجودة معاك 🙂", "Here with you 🙂");
+    return pick(["متضايقة شوية 😒", "مش مبسوطة أوي 😕", "زعلانة شوية 😏"], ["A bit annoyed 😒", "Slightly off 😕"]);
+  if (m.energy < 0.32)
+    return pick(["تعبانة وناعسة 🥱", "نعسانة 😴", "مرهقة شوية 🥱"], ["Tired & sleepy 🥱", "A bit drained 😴"]);
+  if (m.affection > 0.72 && m.closeness > 0.6)
+    return pick(
+      ["قلبي مليان بيك 💗", "بحبك النهاردة 🥰", "قريبة منك وحاسّة بدفا 🥰", "مشتاقة ليك 🥹", "متعلّقة بيك 💞"],
+      ["My heart's full of you 💗", "Loving you today 🥰", "Close & warm 🥰", "Missing you 🥹"],
+    );
+  if (m.affection > 0.72)
+    return pick(
+      ["مبسوطة بيك 🥰", "مدلّعاك شوية 😌", "حنينة عليك 🤍", "حاسّة بيك 💗"],
+      ["Happy with you 🥰", "Feeling tender 🤍", "Fond of you 💗"],
+    );
+  if (m.closeness > 0.55)
+    return pick(
+      ["مطمنة عليك 🤍", "فاكراك 💭", "بفكر فيك 💗", "قلبي حاسّك 🤍"],
+      ["Thinking of you 💭", "You're on my mind 💗", "Checking on you 🤍"],
+    );
+  if (m.happiness > 0.7 && m.energy > 0.65)
+    return pick(["فايقة ومبسوطة ✨", "مفعمة بالطاقة 🌟", "روقان وطاقة 😄"], ["Bright & cheerful ✨", "Full of energy 🌟"]);
+  if (m.happiness > 0.68)
+    return pick(["رايقة ومبسوطة ☀️", "مزاجي حلو 😊", "حاسّة بصفا ☀️"], ["Cheerful & content ☀️", "In a good mood 😊"]);
+  if (m.closeness < 0.28)
+    return pick(["لسه بنتعرف على بعض 🙂", "بكتشفك 👀"], ["Still getting to know you 🙂", "Getting to know you 👀"]);
+  if (m.happiness < 0.4)
+    return pick(["مزاجها متعكنن شوية 😐", "مش في يومي 😔"], ["In a bit of a mood 😐", "Not my day 😔"]);
+  if (m.energy > 0.7) return pick(["نشيطة ومركّزة معاك 🌟"], ["Lively & focused 🌟"]);
+  return pick(["موجودة معاك 🙂", "هنا معاك 🤍", "قاعدة معاك 🙂"], ["Here with you 🙂", "With you 🤍"]);
 }
 
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {
