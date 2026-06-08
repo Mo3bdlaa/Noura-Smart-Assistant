@@ -1,0 +1,29 @@
+name: Reminder tick
+
+# Hobby Vercel crons only run once/day, which is why reminders were late.
+# This pings the scheduler every ~5 minutes (GitHub Actions' minimum) so due
+# reminders, tasks and proactive nudges fire close to their time, for free.
+#
+# Note: GitHub may delay scheduled runs a few minutes under load, and disables
+# schedules after 60 days of repo inactivity. For exact 1-minute delivery, point
+# an external pinger (e.g. cron-job.org) at the same URL, or upgrade Vercel.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# Don't pile up overlapping ticks if one run is slow.
+concurrency:
+  group: reminder-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping scheduler
+        run: |
+          curl -fsS -m 90 \
+            "https://noura-smart-assistant.vercel.app/api/cron/tick" \
+            -o /dev/null -w "tick HTTP %{http_code}\n"
