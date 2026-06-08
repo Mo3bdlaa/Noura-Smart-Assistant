@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { KeyRound, Lock, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
 
-type KeyItem = { id: string; masked: string; length: number };
+type KeyItem = { id: string; masked: string; editable: boolean; source: string };
 
 /**
  * Manage the global LLM key pool as individual, removable cards — replacing the
@@ -124,17 +124,31 @@ export function ApiKeyManager() {
               <span className="grid place-items-center size-8 rounded-lg bg-accent-soft text-accent shrink-0">
                 <KeyRound className="size-4" />
               </span>
-              <code dir="ltr" className="flex-1 min-w-0 truncate text-sm text-ink font-mono">
-                {k.masked}
-              </code>
-              <IconButton
-                size="sm"
-                onClick={() => remove(k)}
-                aria-label={t("امسح", "Remove")}
-                className="text-muted hover:text-danger"
-              >
-                <Trash2 className="size-4" />
-              </IconButton>
+              <div className="flex-1 min-w-0">
+                <code dir="ltr" className="block truncate text-sm text-ink font-mono">
+                  {k.masked}
+                </code>
+                {!k.editable && (
+                  <span className="text-[11px] text-muted">{t("من إعدادات السيرفر (env)", "from server env")}</span>
+                )}
+              </div>
+              {k.editable ? (
+                <IconButton
+                  size="sm"
+                  onClick={() => remove(k)}
+                  aria-label={t("امسح", "Remove")}
+                  className="text-muted hover:text-danger"
+                >
+                  <Trash2 className="size-4" />
+                </IconButton>
+              ) : (
+                <span
+                  className="grid place-items-center size-8 text-muted shrink-0"
+                  title={t("متخزّن في env — امسحه من إعدادات الاستضافة", "stored in env — remove from hosting settings")}
+                >
+                  <Lock className="size-4" />
+                </span>
+              )}
             </li>
           ))}
         </ul>
