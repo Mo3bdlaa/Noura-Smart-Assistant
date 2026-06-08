@@ -25,6 +25,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { EmptyState } from "@/components/ui/Card";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
+import { Markdown } from "@/components/Markdown";
 import { cn } from "@/lib/cn";
 
 type Msg = {
@@ -650,12 +651,11 @@ function Bubble({
   onToggleSelect?: () => void;
 }) {
   const isUser = msg.role === "user";
-  // Split on blank lines into separate bubbles, but collapse the model's
-  // cosmetic single line-breaks inside a paragraph so the text flows and fills
-  // the bubble width (instead of fragmenting into a narrow, very tall column).
+  // Split on blank lines into separate bubbles. Markdown renders each segment, so
+  // single line-breaks flow as spaces while real lists/blocks render properly.
   const parts = msg.content
     .split(/\n{2,}/)
-    .map((p) => p.replace(/[ \t]*\n[ \t]*/g, " ").trim())
+    .map((p) => p.trim())
     .filter(Boolean);
   const isEmptyDraft = !isUser && msg.content === "" && streaming;
   const isTemp = msg.id.startsWith("tmp-") || msg.id.startsWith("draft-");
@@ -709,13 +709,13 @@ function Bubble({
             <div
               key={i}
               className={cn(
-                "whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 leading-relaxed text-[15px]",
+                "break-words rounded-2xl px-4 py-2.5 leading-relaxed text-[15px]",
                 isUser
                   ? "bg-gradient-to-br from-gold to-amber text-on-accent rounded-tr-md shadow-soft"
                   : "bg-surface border border-border text-ink rounded-tl-md shadow-soft",
               )}
             >
-              {p}
+              <Markdown>{p}</Markdown>
             </div>
           ))
         )}

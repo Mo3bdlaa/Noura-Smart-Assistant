@@ -17,12 +17,18 @@ function moodKind(m: MoodSnapshot): "happy" | "calm" | "upset" {
 
 function moodLabel(m: MoodSnapshot, locale: Locale): string {
   const t = (ar: string, en: string) => (locale === "en" ? en : ar);
-  if (m.annoyance > 0.35)
-    return m.intensity > 0.6 ? t("زعلانة منك 😔", "Upset with you 😔") : t("متضايقة شوية", "A bit annoyed");
-  if (m.energy < 0.35) return t("تعبانة شوية 🥱", "A little tired 🥱");
-  if (m.affection > 0.7) return t("مبسوطة بيك 🥰", "Happy with you 🥰");
-  if (m.happiness > 0.65) return t("رايقة ومبسوطة ☀️", "Cheerful & content ☀️");
-  if (m.happiness < 0.4) return t("مزاجها متعكنن شوية", "In a bit of a mood");
+  // First match wins — ordered from most to least overriding.
+  if (m.safetyOverride) return t("قلقانة عليك 🫂", "Worried about you 🫂");
+  if (m.annoyance > 0.45)
+    return m.intensity > 0.6 ? t("زعلانة منك 😔", "Upset with you 😔") : t("متضايقة شوية 😒", "A bit annoyed 😒");
+  if (m.energy < 0.32) return t("تعبانة وناعسة 🥱", "Tired & sleepy 🥱");
+  if (m.affection > 0.72 && m.closeness > 0.6) return t("قريبة منك وحاسّة بدفا 🥰", "Close & warm with you 🥰");
+  if (m.affection > 0.72) return t("مبسوطة بيك 🥰", "Happy with you 🥰");
+  if (m.happiness > 0.7 && m.energy > 0.65) return t("فايقة ومبسوطة ✨", "Bright & cheerful ✨");
+  if (m.happiness > 0.68) return t("رايقة ومبسوطة ☀️", "Cheerful & content ☀️");
+  if (m.closeness < 0.28) return t("لسه بنتعرف على بعض 🙂", "Still getting to know you 🙂");
+  if (m.happiness < 0.4) return t("مزاجها متعكنن شوية 😐", "In a bit of a mood 😐");
+  if (m.energy > 0.7) return t("نشيطة ومركّزة معاك 🌟", "Lively & focused 🌟");
   return t("موجودة معاك 🙂", "Here with you 🙂");
 }
 
@@ -46,6 +52,14 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
       assistantPhoto={assistant?.avatarUrl ?? null}
       mood={moodKind(mood)}
       moodLabel={moodLabel(mood, locale)}
+      moodStats={{
+        happiness: mood.happiness,
+        affection: mood.affection,
+        energy: mood.energy,
+        annoyance: mood.annoyance,
+        intensity: mood.intensity,
+        closeness: mood.closeness,
+      }}
       isAdmin={user.role === "admin"}
       conversations={conversations.map((c) => ({ id: c.id, type: c.type, title: c.title }))}
     >

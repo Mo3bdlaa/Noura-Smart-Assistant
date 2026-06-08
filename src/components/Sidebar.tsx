@@ -20,6 +20,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useToast } from "@/components/ui/Toast";
 import { useI18n } from "@/components/i18n";
+import { MoodStatus, type MoodStats } from "@/components/MoodStatus";
 import { cn } from "@/lib/cn";
 
 export type Conv = { id: string; type: "main" | "side" | "incognito"; title: string | null };
@@ -36,6 +37,7 @@ export function Sidebar(props: {
   assistantPhoto?: string | null;
   mood: MoodKind;
   moodLabel: string;
+  moodStats: MoodStats;
   isAdmin: boolean;
   conversations: Conv[];
   onNavigate?: () => void;
@@ -100,19 +102,21 @@ export function Sidebar(props: {
 
   return (
     <aside className="w-72 max-w-[82vw] h-dvh flex flex-col bg-surface border-l border-border">
-      {/* header → profile */}
-      <button
-        onClick={() => go("/profile")}
-        className="p-4 pt-safe flex items-center gap-3 border-b border-border text-start hover:bg-elevated/50 transition-theme"
-      >
-        <Avatar name={props.assistantName} photo={props.assistantPhoto} size="lg" mood={props.mood} />
+      {/* header → profile (status taps open the mood breakdown) */}
+      <div className="p-4 pt-safe flex items-center gap-3 border-b border-border">
+        <button onClick={() => go("/profile")} className="shrink-0" aria-label={props.assistantName}>
+          <Avatar name={props.assistantName} photo={props.assistantPhoto} size="lg" mood={props.mood} />
+        </button>
         <div className="min-w-0">
-          <div className="text-lg font-extrabold text-ink leading-tight truncate">
+          <button
+            onClick={() => go("/profile")}
+            className="block text-lg font-extrabold text-ink leading-tight truncate text-start hover:text-accent transition-theme"
+          >
             {props.assistantName}
-          </div>
-          <div className="text-xs text-muted leading-tight truncate">{props.moodLabel}</div>
+          </button>
+          <MoodStatus label={props.moodLabel} stats={props.moodStats} className="text-xs" />
         </div>
-      </button>
+      </div>
 
       {/* new conversation */}
       <div className="p-3 grid grid-cols-2 gap-2">

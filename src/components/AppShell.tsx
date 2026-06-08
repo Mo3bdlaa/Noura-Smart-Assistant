@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
 import { Sidebar, type Conv } from "@/components/Sidebar";
+import { MoodStatus, type MoodStats } from "@/components/MoodStatus";
 import { cn } from "@/lib/cn";
 
 type MoodKind = "happy" | "calm" | "upset";
@@ -19,6 +20,7 @@ export function AppShell({
   assistantPhoto,
   mood,
   moodLabel,
+  moodStats,
   isAdmin,
   conversations,
   children,
@@ -27,6 +29,7 @@ export function AppShell({
   assistantPhoto?: string | null;
   mood: MoodKind;
   moodLabel: string;
+  moodStats: MoodStats;
   isAdmin: boolean;
   conversations: Conv[];
   children: React.ReactNode;
@@ -42,6 +45,7 @@ export function AppShell({
           assistantPhoto={assistantPhoto}
           mood={mood}
           moodLabel={moodLabel}
+          moodStats={moodStats}
           isAdmin={isAdmin}
           conversations={conversations}
         />
@@ -67,6 +71,7 @@ export function AppShell({
             assistantPhoto={assistantPhoto}
             mood={mood}
             moodLabel={moodLabel}
+            moodStats={moodStats}
             isAdmin={isAdmin}
             conversations={conversations}
             onNavigate={() => setOpen(false)}
@@ -83,13 +88,17 @@ export function AppShell({
             <IconButton onClick={() => setOpen(true)} aria-label="القائمة">
               <Menu className="size-5" />
             </IconButton>
-            <Link href="/profile" className="flex items-center gap-3 min-w-0 flex-1">
-              <Avatar name={assistantName} photo={assistantPhoto} size="sm" mood={mood} />
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <Link href="/profile" className="shrink-0">
+                <Avatar name={assistantName} photo={assistantPhoto} size="sm" mood={mood} />
+              </Link>
               <div className="min-w-0">
-                <div className="font-bold text-ink leading-tight truncate">{assistantName}</div>
-                <div className="text-[11px] text-muted leading-tight truncate">{moodLabel}</div>
+                <Link href="/profile" className="block font-bold text-ink leading-tight truncate">
+                  {assistantName}
+                </Link>
+                <MoodStatus label={moodLabel} stats={moodStats} className="text-[11px]" />
               </div>
-            </Link>
+            </div>
           </div>
         </header>
 
