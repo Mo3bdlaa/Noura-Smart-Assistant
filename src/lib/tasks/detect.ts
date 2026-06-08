@@ -35,11 +35,11 @@ export async function detectTasks(opts: { text: string; timezone: string }): Pro
   const localNow = formatInTimeZone(now, opts.timezone, "yyyy-MM-dd HH:mm (EEEE)");
 
   const system =
-    "You extract scheduling requests from a chat message and output JSON ONLY. " +
-    "A single message may imply MULTIPLE tasks (e.g. two times of day, or several items). " +
-    "Each task = the assistant proactively doing something later/on a schedule " +
-    "(remind, check in, or research+summarize like prices/news). " +
-    "If it's just normal conversation, return an empty array.";
+    "You turn a chat message into scheduled tasks the assistant will proactively do " +
+    "later (remind, check in, or research+summarize). Output JSON ONLY. THINK about " +
+    "what the user actually wants — frequency, sensible times, and WHY — don't just " +
+    "copy words. One message can imply MULTIPLE tasks. If it's normal conversation, " +
+    "return an empty array.";
 
   const prompt = `Now: ${localNow} (timezone ${opts.timezone}).
 User message: """${opts.text}"""
@@ -49,30 +49,49 @@ Output JSON exactly:
   "tasks": [
     {
       "kind": "remind" | "digest" | "nudge",
-      "title": "short label in the user's language",
-      "instruction": "ALL the details/body to include in the message — e.g. exact medication names, doses, steps, links; or for digest what to research. Keep any specifics the user gave. null only if none.",
-      "datetime": "LOCAL wall-clock time for the FIRST run, format 'YYYY-MM-DD HH:mm' (24h). NO timezone, NO 'Z', NO offset — just the clock time the user means.",
+      "title": "short clean label in the user's language (e.g. 'دوا الضغط')",
+      "instruction": "the MEANINGFUL body she'll actually say — include the REASON/why behind it plus any specifics (names, doses, steps, links). Make it genuinely helpful, not a bare title. e.g. 'فكّره ياخد دوا الضغط — قال إنه بينسى جرعة بالليل'. null only if truly nothing to add.",
+      "datetime": "LOCAL wall-clock for the FIRST run, format 'YYYY-MM-DD HH:mm' (24h). NO timezone/Z/offset.",
       "recurrence": "once" | "daily" | "weekly"
     }
   ]
 }
-Rules: read each datetime as the user's LOCAL clock relative to Now (do NOT convert
-to UTC — output exactly the local wall-clock time). Create one task per distinct
-time/item (e.g. "9am and 9pm" → two tasks). If no schedulable request, return {"tasks": []}.`;
 
-  const res = await generateJson<{ tasks?: ExtractedTask[] }>({ system, prompt, temperature: 0.1 });
+THINK like this before writing:
+1) Frequency → recurrence. "every day / كل يوم / يوميًا" = daily. "every week" = weekly. one-off = once.
+2) Multiple times a day → SPLIT into one task per time, each with recurrence "daily".
+   - "twice a day / مرتين في اليوم" with no times given → 2 daily tasks at sensible spread: 09:00 and 21:00.
+   - "three times a day / 3 مرات" → 08:00, 14:00, 20:00. If the user gave times, use those instead.
+3) Vague single times → reasonable defaults: "in the morning/الصبح" ≈ 08:00, "noon/الضهر" ≈ 13:00,
+   "afternoon/العصر" ≈ 16:00, "evening/بالليل" ≈ 20:00, "before bed/قبل النوم" ≈ 23:00.
+4) For recurring tasks, set the FIRST datetime to the next future occurrence of that time.
+5) Always capture the user's REASON/context in instruction so the reminder isn't just a title.
+
+Read every datetime as the user's LOCAL clock relative to Now (output the local wall-clock, do NOT convert to UTC).
+If no schedulable request, return {"tasks": []}.`;
+
+  const res = await generateJson<{ tasks?: ExtractedTask[] }>({ system, prompt, temperature: 0.3 });
   const out: NewTask[] = [];
+  const nowMs = Date.now();
   for (const t of res?.tasks ?? []) {
     if (!t?.datetime || !t.title) continue;
-    const when = localToUtc(t.datetime, opts.timezone);
+    const recurrence = t.recurrence ?? "once";
+    let when = localToUtc(t.datetime, opts.timezone);
     if (!when) continue;
-    if ((t.recurrence ?? "once") === "once" && when.getTime() < Date.now() - 60_000) continue;
+    if (recurrence === "once") {
+      if (when.getTime() < nowMs - 60_000) continue; // a one-off in the past is noise
+    } else {
+      // Recurring: roll the first run forward to the next future occurrence so a
+      // "daily at 9am" set at 3pm doesn't fire once immediately.
+      const stepDays = recurrence === "weekly" ? 7 : 1;
+      while (when.getTime() <= nowMs) when = new Date(when.getTime() + stepDays * 86_400_000);
+    }
     out.push({
       kind: t.kind ?? "remind",
       title: t.title.slice(0, 200),
       instruction: t.instruction ?? null,
       nextRunAt: when,
-      recurrence: t.recurrence ?? "once",
+      recurrence,
     });
   }
   return out.slice(0, 6); // safety cap
