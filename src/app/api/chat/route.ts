@@ -21,8 +21,10 @@ import {
   recentHistory,
   saveMessage,
   setConversationTitle,
+  setMessageReaction,
   updateSideCardTitle,
 } from "@/lib/chat/store";
+import { parseReactLead, couldBeReactLead, controlFrame, REACT_LEAD_RE } from "@/lib/chat/react-tag";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
@@ -201,26 +203,65 @@ export async function POST(req: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let full = "";
+      // She may open with an optional "<react:emoji>" tag. We buffer the very start
+      // until we can tell whether it's a tag; if so we emit a control frame (so the
+      // client puts the reaction on the user's message) and strip it from the reply.
+      let buf = "";
+      let decided = false;
+      const flushDecision = () => {
+        const { reaction, rest } = parseReactLead(buf);
+        if (reaction) {
+          controller.enqueue(encoder.encode(controlFrame({ reaction })));
+          if (rest) controller.enqueue(encoder.encode(rest));
+        } else {
+          controller.enqueue(encoder.encode(buf));
+        }
+        buf = "";
+        decided = true;
+      };
+
       try {
         for await (const delta of streamChat({ system, history, images })) {
           full += delta;
-          controller.enqueue(encoder.encode(delta));
+          if (decided) {
+            controller.enqueue(encoder.encode(delta));
+            continue;
+          }
+          buf += delta;
+          if (REACT_LEAD_RE.test(buf) || !couldBeReactLead(buf) || buf.length > 64) {
+            flushDecision();
+          }
         }
       } catch (e) {
         console.error("stream error", e);
         if (!full) {
           const msg = friendlyError(e, user!.locale);
           full = msg;
+          buf = "";
+          decided = true;
           controller.enqueue(encoder.encode(msg));
         }
       } finally {
-        // Persist the assistant reply, then enqueue reflection (skip for incognito).
-        await saveMessage({
-          conversationId,
-          userId: ctx!.userId,
-          role: "assistant",
-          content: full,
-        });
+        if (!decided) flushDecision(); // stream ended while still buffering
+        const { reaction, rest } = parseReactLead(full);
+        const replyText = rest.trim();
+
+        // A reaction goes onto the user's message; the reply (if any) is saved separately.
+        if (reaction) {
+          try {
+            await setMessageReaction(ctx!, userMessageId, reaction);
+          } catch (e) {
+            console.error("set reaction failed", e);
+          }
+        }
+        if (replyText) {
+          await saveMessage({
+            conversationId,
+            userId: ctx!.userId,
+            role: "assistant",
+            content: replyText,
+          });
+        }
         if (conv.type !== "incognito") {
           await enqueueExtract({
             assistantId: ctx!.assistantId,
@@ -228,7 +269,7 @@ export async function POST(req: Request) {
             conversationId,
             userMessageId,
             userText: message,
-            assistantText: full,
+            assistantText: replyText,
             persistMemory: policy.persistsMemory,
             mutateMood: policy.mutatesMood,
           });

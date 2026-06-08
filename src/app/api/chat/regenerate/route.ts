@@ -10,6 +10,7 @@ import { retrieveMemories } from "@/lib/memory/retrieve";
 import { readMood } from "@/lib/mood/state";
 import { timeContext } from "@/lib/time/awareness";
 import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
+import { parseReactLead, couldBeReactLead, REACT_LEAD_RE } from "@/lib/chat/react-tag";
 import { getLocale } from "@/lib/i18n";
 
 export const maxDuration = 60;
@@ -89,15 +90,31 @@ export async function POST(req: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let full = "";
+      // Regenerating a reply: strip any leading "<react:…>" tag so it never shows
+      // raw (reactions only apply on the live send path, not on a re-do).
+      let buf = "";
+      let decided = false;
+      const flush = () => {
+        controller.enqueue(encoder.encode(parseReactLead(buf).rest));
+        buf = "";
+        decided = true;
+      };
       try {
         for await (const delta of streamChat({ system, history, images, temperature: 1.0 })) {
           full += delta;
-          controller.enqueue(encoder.encode(delta));
+          if (decided) {
+            controller.enqueue(encoder.encode(delta));
+            continue;
+          }
+          buf += delta;
+          if (REACT_LEAD_RE.test(buf) || !couldBeReactLead(buf) || buf.length > 64) flush();
         }
       } catch (e) {
         console.error("regenerate stream error", e);
       } finally {
-        if (full.trim()) {
+        if (!decided) flush();
+        const replyText = parseReactLead(full).rest.trim();
+        if (replyText) {
           if (lastAssistant) {
             await db.delete(messages).where(eq(messages.id, lastAssistant.id));
           }
@@ -105,7 +122,7 @@ export async function POST(req: Request) {
             conversationId,
             userId: ctx!.userId,
             role: "assistant",
-            content: full,
+            content: replyText,
           });
         }
         // On empty/failure the old reply is kept; the client refreshes to restore it.
