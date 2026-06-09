@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Brain, ChevronDown, Crown, Lock, MessagesSquare, Send, Unlock, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Activity, Brain, ChevronDown, Crown, KeyRound, Lock, MessagesSquare, Send, Shield, ShieldOff, Trash2, Unlock, Users } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, Chip, EmptyState } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useToast } from "@/components/ui/Toast";
 import { useI18n } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 
@@ -43,6 +45,9 @@ type AgentMsg = { id: string; question: string; answer: string | null; createdAt
 
 export default function AdminPage() {
   const { t, locale } = useI18n();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [recent, setRecent] = useState<AgentMsg[]>([]);
   const [open, setOpen] = useState<string | null>(null);
@@ -78,6 +83,55 @@ export default function AdminPage() {
     });
   }
 
+  async function setRole(u: Row, role: "admin" | "user") {
+    const ok = await confirm({
+      title: role === "admin" ? t("تخليه أدمن؟", "Make admin?") : t("ترجّعه مستخدم عادي؟", "Demote to user?"),
+      confirmText: t("تمام", "OK"),
+      cancelText: t("إلغاء", "Cancel"),
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/admin/user/${u.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    if (res.ok) {
+      setRows((rs) => rs.map((r) => (r.id === u.id ? { ...r, role } : r)));
+      toast(t("اتغيّر ✅", "Updated ✅"), "success");
+    } else toast(t("مش قادر", "Couldn't"), "error");
+  }
+
+  async function resetPassword(u: Row) {
+    const pw = window.prompt(t(`باسورد جديد لـ ${u.email} (٨ حروف على الأقل):`, `New password for ${u.email} (min 8):`));
+    if (!pw) return;
+    if (pw.length < 8) {
+      toast(t("الباسورد قصير", "Too short"), "error");
+      return;
+    }
+    const res = await fetch(`/api/admin/user/${u.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword: pw }),
+    });
+    toast(res.ok ? t("اتغيّر الباسورد ✅", "Password reset ✅") : t("مش قادر", "Couldn't"), res.ok ? "success" : "error");
+  }
+
+  async function delUser(u: Row) {
+    const ok = await confirm({
+      title: t(`تمسح ${u.displayName || u.email} نهائي؟`, `Delete ${u.displayName || u.email} permanently?`),
+      body: t("ده هيمسح حسابه ومساعده ومحادثاته وذاكرته كلها. مفيش رجوع.", "This deletes their account, assistant, chats and memories. No undo."),
+      confirmText: t("امسح نهائي", "Delete forever"),
+      cancelText: t("إلغاء", "Cancel"),
+      danger: true,
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/admin/user/${u.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setRows((rs) => rs.filter((r) => r.id !== u.id));
+      toast(t("اتمسح", "Deleted"), "success");
+    } else toast(t("مش قادر", "Couldn't"), "error");
+  }
+
   async function ask() {
     if (!target || !question.trim()) return;
     setBusy(true);
@@ -98,6 +152,20 @@ export default function AdminPage() {
   const fmtDate = (s: string | null) =>
     s ? new Date(s).toLocaleDateString(locale === "en" ? "en-US" : "ar-EG", { day: "numeric", month: "short" }) : "—";
 
+  const activeToday = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return rows.filter((r) => r.lastActive && new Date(r.lastActive) >= today).length;
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return rows;
+    return rows.filter((r) =>
+      [r.email, r.displayName, r.assistantName].some((v) => (v ?? "").toLowerCase().includes(s)),
+    );
+  }, [rows, q]);
+
   if (forbidden) {
     return (
       <PageShell title={t("لوحة الأدمن", "Admin")} icon={<Crown className="size-5" />}>
@@ -111,17 +179,26 @@ export default function AdminPage() {
   return (
     <PageShell title={t("لوحة الأدمن", "Admin")} icon={<Crown className="size-5" />}>
       {/* stat cards */}
-      <div className="grid grid-cols-3 gap-2 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
         <Stat icon={<Users className="size-4" />} label={t("مستخدمين", "Users")} value={rows.length} />
+        <Stat icon={<Activity className="size-4" />} label={t("نشطين النهاردة", "Active today")} value={activeToday} />
         <Stat icon={<MessagesSquare className="size-4" />} label={t("رسائل", "Messages")} value={rows.reduce((s, r) => s + (r.userMessages || 0), 0)} />
         <Stat icon={<Brain className="size-4" />} label={t("ذكريات", "Memories")} value={rows.reduce((s, r) => s + (r.memoryCount || 0), 0)} />
       </div>
 
-      <h2 className="text-sm font-semibold text-muted mb-2">
-        {t("المستخدمين", "Users")} ({rows.length})
-      </h2>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <h2 className="text-sm font-semibold text-muted">
+          {t("المستخدمين", "Users")} ({filtered.length})
+        </h2>
+      </div>
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={t("دوّر باسم أو إيميل...", "Search by name or email...")}
+        className="mb-3"
+      />
       <div className="grid gap-2 mb-8">
-        {rows.map((r) => {
+        {filtered.map((r) => {
           const upset = r.annoyance != null && r.annoyance > 0.35;
           const isOpen = open === r.id;
           return (
@@ -161,29 +238,33 @@ export default function AdminPage() {
                       <span className="text-ink">{r.userNotes}</span>
                     </div>
                   )}
-                  {r.role !== "admin" && (
-                    <Button
-                      size="sm"
-                      variant={r.isLocked ? "primary" : "outline"}
-                      onClick={() => toggleLock(r)}
-                    >
-                      {r.isLocked ? (
-                        <>
-                          <Unlock className="size-4" /> {t("فتح الحساب", "Unlock")}
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="size-4" /> {t("قفل الحساب", "Lock")}
-                        </>
-                      )}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" variant={r.isLocked ? "primary" : "outline"} onClick={() => toggleLock(r)}>
+                      {r.isLocked ? <Unlock className="size-4" /> : <Lock className="size-4" />}
+                      {r.isLocked ? t("فتح", "Unlock") : t("قفل", "Lock")}
                     </Button>
-                  )}
+                    <Button size="sm" variant="outline" onClick={() => resetPassword(r)}>
+                      <KeyRound className="size-4" /> {t("باسورد", "Password")}
+                    </Button>
+                    {r.role === "admin" ? (
+                      <Button size="sm" variant="outline" onClick={() => setRole(r, "user")}>
+                        <ShieldOff className="size-4" /> {t("شيل الأدمن", "Remove admin")}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => setRole(r, "admin")}>
+                        <Shield className="size-4" /> {t("خليه أدمن", "Make admin")}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="text-danger" onClick={() => delUser(r)}>
+                      <Trash2 className="size-4" /> {t("امسح", "Delete")}
+                    </Button>
+                  </div>
                 </div>
               )}
             </Card>
           );
         })}
-        {rows.length === 0 && <p className="text-sm text-faint">{t("مفيش مستخدمين.", "No users.")}</p>}
+        {filtered.length === 0 && <p className="text-sm text-faint">{t("مفيش مستخدمين.", "No users.")}</p>}
       </div>
 
       {/* ask the network */}

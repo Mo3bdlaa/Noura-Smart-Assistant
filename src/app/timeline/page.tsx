@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarHeart,
   Heart,
+  Image as ImageIcon,
   MessageCircle,
   MessageCircleHeart,
   NotebookPen,
@@ -24,6 +25,7 @@ type Milestone = {
   text?: string;
   memoryType?: string;
 };
+type Photo = { id: string; url: string; tag: string | null };
 type TimelineData = {
   startedAt: string | null;
   daysTogether: number;
@@ -39,6 +41,7 @@ type TimelineData = {
 export default function TimelinePage() {
   const { t, locale } = useI18n();
   const [data, setData] = useState<TimelineData | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +50,10 @@ export default function TimelinePage() {
       .then((d) => setData(d))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
+    fetch("/api/assistant/photos")
+      .then((r) => r.json())
+      .then((d) => setPhotos(d.photos ?? []))
+      .catch(() => setPhotos([]));
   }, []);
 
   const loc = locale === "en" ? "en-US" : "ar-EG";
@@ -86,6 +93,27 @@ export default function TimelinePage() {
 
           {/* mood over time */}
           <MoodChart mood={data.mood} t={t} />
+
+          {/* shared photo album */}
+          {photos.length > 0 && (
+            <>
+              <h2 className="text-sm font-semibold text-muted mt-6 mb-3 flex items-center gap-1.5">
+                <ImageIcon className="size-4 text-accent" /> {t("ألبومنا", "Our album")}
+              </h2>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {photos.map((p) => (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={p.id}
+                    src={p.url}
+                    alt={p.tag ?? ""}
+                    loading="lazy"
+                    className="aspect-square w-full object-cover rounded-xl border border-border"
+                  />
+                ))}
+              </div>
+            </>
+          )}
 
           {/* her nightly diary */}
           {data.diary?.length > 0 && (
