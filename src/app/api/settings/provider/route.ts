@@ -20,8 +20,8 @@ const Body = z.object({
   chatModel: z.string().trim().max(100).optional(),
   utilityModel: z.string().trim().max(100).optional(),
   embedModel: z.string().trim().max(100).optional(),
-  // ElevenLabs voice (her real spoken voice)
-  elevenLabsKey: z.string().trim().max(200).optional(),
+  // ElevenLabs voice (her real spoken voice) — pool of keys, one per line.
+  elevenLabsKeys: z.string().trim().max(4000).optional(),
   voiceId: z.string().trim().max(100).optional(),
   // per-role overrides
   chat: Role.optional(),
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   if (d.chatModel) await setSetting("llm_chat_model", d.chatModel);
   if (d.utilityModel) await setSetting("llm_utility_model", d.utilityModel);
   if (d.embedModel) await setSetting("llm_embed_model", d.embedModel);
-  if (d.elevenLabsKey) await setSetting("elevenlabs_api_key", d.elevenLabsKey.trim());
+  if (d.elevenLabsKeys) await setSetting("elevenlabs_api_keys", cleanKeys(d.elevenLabsKeys));
   if (d.voiceId) await setSetting("elevenlabs_voice_id", d.voiceId.trim());
 
   for (const role of ["chat", "utility", "embed"] as const) {

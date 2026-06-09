@@ -68,7 +68,7 @@ export function SettingsForm({
     chatModel: provider?.chatModel ?? "",
     utilityModel: provider?.utilityModel ?? "",
     embedModel: provider?.embedModel ?? "",
-    elevenLabsKey: "",
+    elevenLabsKeys: "",
     voiceId: provider?.voiceId ?? "",
     chatBase: "",
     chatKeys: "",
@@ -93,7 +93,7 @@ export function SettingsForm({
           chatModel: prov.chatModel,
           utilityModel: prov.utilityModel,
           embedModel: prov.embedModel,
-          elevenLabsKey: prov.elevenLabsKey,
+          elevenLabsKeys: prov.elevenLabsKeys,
           voiceId: prov.voiceId,
           chat: { baseUrl: prov.chatBase, apiKeys: prov.chatKeys },
           utility: { baseUrl: prov.utilBase, apiKeys: prov.utilKeys },
@@ -346,18 +346,18 @@ export function SettingsForm({
                 />
               </Field>
               <Field
-                label={t("صوتها (ElevenLabs API key)", "Her voice (ElevenLabs API key)")}
+                label={t("صوتها (ElevenLabs — مفتاح في كل سطر)", "Her voice (ElevenLabs — one key per line)")}
                 hint={t(
-                  "عشان تتكلم بصوت حقيقي لما تشغّل السماعة. سيبه فاضي عشان متغيّرش.",
-                  "Enables her real spoken voice. Leave empty to keep.",
+                  "بتتبدّل بينهم وتبرّد اللي يوصل حده — كل حساب مجاني بيزوّد الكوتا. سيبه فاضي عشان متغيّرش.",
+                  "Rotated with cooldown — each free account adds quota. Leave empty to keep.",
                 )}
               >
-                <Input
+                <Textarea
                   dir="ltr"
-                  type="password"
-                  placeholder="sk_..."
-                  value={prov.elevenLabsKey}
-                  onChange={(e) => setProv((p) => ({ ...p, elevenLabsKey: e.target.value }))}
+                  rows={2}
+                  placeholder={"sk_...\nsk_..."}
+                  value={prov.elevenLabsKeys}
+                  onChange={(e) => setProv((p) => ({ ...p, elevenLabsKeys: e.target.value }))}
                 />
               </Field>
               <Field label={t("Voice ID (اختياري)", "Voice ID (optional)")} hint={t("من حسابك في ElevenLabs", "from your ElevenLabs account")}>
