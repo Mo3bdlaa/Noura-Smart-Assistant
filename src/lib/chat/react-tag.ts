@@ -8,6 +8,7 @@
 export const REACT_LEAD_RE = /^\s*<react:\s*([^\s>]{1,16})\s*>\s*/u;
 export const REPLY_LEAD_RE = /^\s*<replyto:\s*([^>]{1,80}?)\s*>\s*/u;
 export const PHOTO_LEAD_RE = /^\s*<photo(?::\s*([^>]{0,40}?))?\s*>\s*/u;
+export const VOICE_LEAD_RE = /^\s*<voice>\s*/u;
 
 /** NUL-prefixed control frame the chat stream sends before the reply text. */
 export const CONTROL_PREFIX = String.fromCharCode(0);
@@ -19,17 +20,19 @@ export type LeadTags = {
   replyQuote: string | null;
   photo: boolean;
   photoTag: string | null;
+  voice: boolean;
   rest: string;
 };
 
-/** Strip any leading <react:>/<replyto:>/<photo:> tags and return what they carried. */
+/** Strip any leading <react:>/<replyto:>/<photo:>/<voice> tags and return what they carried. */
 export function parseLeadTags(text: string): LeadTags {
   let rest = text;
   let reaction: string | null = null;
   let replyQuote: string | null = null;
   let photo = false;
   let photoTag: string | null = null;
-  for (let i = 0; i < 5; i++) {
+  let voice = false;
+  for (let i = 0; i < 6; i++) {
     const r = rest.match(REACT_LEAD_RE);
     if (r) {
       if (!reaction) reaction = (r[1] ?? "").trim() || null;
@@ -49,16 +52,22 @@ export function parseLeadTags(text: string): LeadTags {
       rest = rest.slice(ph[0].length);
       continue;
     }
+    const v = rest.match(VOICE_LEAD_RE);
+    if (v) {
+      voice = true;
+      rest = rest.slice(v[0].length);
+      continue;
+    }
     break;
   }
-  return { reaction, replyQuote, photo, photoTag, rest };
+  return { reaction, replyQuote, photo, photoTag, voice, rest };
 }
 
 /** While streaming, could this buffer still grow into a leading tag? */
 export function couldBeLeadTag(buf: string): boolean {
   const s = buf.replace(/^\s+/, "");
   if (s === "") return true;
-  for (const prefix of ["<react:", "<replyto:", "<photo"]) {
+  for (const prefix of ["<react:", "<replyto:", "<photo", "<voice"]) {
     if (s.length < prefix.length) {
       if (prefix.startsWith(s)) return true;
     } else if (s.startsWith(prefix) && !s.includes(">")) {

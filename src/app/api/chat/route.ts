@@ -238,8 +238,9 @@ export async function POST(req: Request) {
       let decided = false;
       let resolvedReplyTo: Awaited<ReturnType<typeof findUserMessageByQuote>> = null;
       let resolvedPhoto: string | null = null;
+      let isVoice = false;
       const decide = async () => {
-        const { reaction, replyQuote, photo, photoTag, rest } = parseLeadTags(buf);
+        const { reaction, replyQuote, photo, photoTag, voice, rest } = parseLeadTags(buf);
         if (replyQuote) {
           try {
             resolvedReplyTo = await findUserMessageByQuote(conversationId, replyQuote);
@@ -254,10 +255,12 @@ export async function POST(req: Request) {
             /* ignore photo resolution errors */
           }
         }
+        if (voice) isVoice = true;
         const frame: Record<string, unknown> = {};
         if (reaction) frame.reaction = reaction;
         if (resolvedReplyTo) frame.replyTo = resolvedReplyTo;
         if (resolvedPhoto) frame.photo = resolvedPhoto;
+        if (isVoice) frame.voice = true;
         if (Object.keys(frame).length) controller.enqueue(encoder.encode(controlFrame(frame)));
         if (rest) controller.enqueue(encoder.encode(rest));
         buf = "";
@@ -304,6 +307,7 @@ export async function POST(req: Request) {
           const meta: Record<string, unknown> = {};
           if (resolvedReplyTo) meta.replyTo = resolvedReplyTo;
           if (resolvedPhoto) meta.images = [resolvedPhoto];
+          if (isVoice) meta.voice = true;
           await saveMessage({
             conversationId,
             userId: ctx!.userId,

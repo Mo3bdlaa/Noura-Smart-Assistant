@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/ui/Card";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
 import { Markdown } from "@/components/Markdown";
+import { VoiceNote } from "@/components/VoiceNote";
 import { cn } from "@/lib/cn";
 
 type ReplyRef = { id: string; role: "user" | "assistant"; preview: string };
@@ -37,6 +38,8 @@ type Msg = {
   content: string;
   images?: string[];
   reaction?: string | null;
+  /** render this (assistant) message as a voice note */
+  voice?: boolean;
   /** quoted message this one is replying to */
   replyTo?: ReplyRef | null;
   /** if set, this row is a card linking to a side conversation */
@@ -286,6 +289,7 @@ export function ChatWindow({
       let raw = "";
       let controlDone = false;
       let draftHasPhoto = false;
+      let draftIsVoice = false;
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -308,6 +312,10 @@ export function ChatWindow({
                 draftHasPhoto = true;
                 setMessages((m) => m.map((x) => (x.id === draftId ? { ...x, images: [ctrl.photo] } : x)));
               }
+              if (ctrl.voice) {
+                draftIsVoice = true;
+                setMessages((m) => m.map((x) => (x.id === draftId ? { ...x, voice: true } : x)));
+              }
             } catch {
               /* ignore malformed control frame */
             }
@@ -325,8 +333,8 @@ export function ChatWindow({
       // React-only turn (just an emoji, no words, no photo) → drop the empty bubble.
       if (acc.trim() === "" && !draftHasPhoto) {
         setMessages((m) => m.filter((x) => x.id !== draftId));
-      } else if (acc.trim()) {
-        speak(acc);
+      } else if (acc.trim() && !draftIsVoice) {
+        speak(acc); // voice notes have their own player
       }
       router.refresh();
     } catch (e) {
@@ -827,6 +835,8 @@ function Bubble({
         )}
         {isEmptyDraft ? (
           <TypingDots />
+        ) : msg.voice && msg.content ? (
+          <VoiceNote text={msg.content} />
         ) : !msg.content ? null : (
           (parts.length ? parts : [msg.content]).map((p, i) => (
             <div

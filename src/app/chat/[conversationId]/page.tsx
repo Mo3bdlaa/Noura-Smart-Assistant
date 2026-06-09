@@ -51,6 +51,7 @@ export default async function ConversationPage({
               images?: string[];
               sideCard?: string;
               replyTo?: { id: string; role: "user" | "assistant"; preview: string };
+              voice?: boolean;
             } | null) ?? null;
           return {
             id: m.id,
@@ -60,6 +61,7 @@ export default async function ConversationPage({
             images: meta?.images,
             sideCardId: meta?.sideCard,
             replyTo: meta?.replyTo ?? null,
+            voice: meta?.voice ?? false,
           };
         })}
     />
