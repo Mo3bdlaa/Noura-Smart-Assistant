@@ -20,11 +20,28 @@ export function selfiePrompt(appearance: string, scene?: string | null): string 
     .slice(0, 600);
 }
 
-/** Proxy URL the client loads (no token exposed; server does the generation). */
-export function buildSelfieUrl(appearance: string, scene?: string | null): string | null {
+/** Stable per-assistant seed so every generated selfie keeps the same face. */
+function stableSeed(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) % 1_000_000;
+}
+
+/**
+ * Proxy URL the client loads (no token exposed; server does the generation).
+ * Passing seedKey (the assistant id) fixes the seed → consistent face across scenes.
+ */
+export function buildSelfieUrl(
+  appearance: string,
+  scene?: string | null,
+  seedKey?: string | null,
+): string | null {
   const prompt = selfiePrompt(appearance, scene);
   if (!prompt) return null;
-  const seed = Math.floor(Math.random() * 1_000_000);
+  const seed = seedKey ? stableSeed(seedKey) : Math.floor(Math.random() * 1_000_000);
   return `/api/image?p=${encodeURIComponent(prompt)}&s=${seed}`;
 }
 
