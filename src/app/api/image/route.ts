@@ -25,8 +25,16 @@ export async function GET(req: Request) {
   const fallback = NextResponse.redirect(new URL("/noura-avatar.jpg", req.url));
   if (!prompt) return fallback;
 
+  // Pick a token from the pool (settings/env) — keeps Pollinations off its anon limit.
+  const pool = ((await getSetting("image_gen_tokens")) ?? "")
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   const token =
-    process.env.POLLINATIONS_TOKEN || (await getSetting("image_gen_token")) || undefined;
+    process.env.POLLINATIONS_TOKEN ||
+    pool[Math.floor(Math.random() * pool.length)] ||
+    (await getSetting("image_gen_token")) ||
+    undefined;
 
   try {
     const r = await fetch(upstreamImageUrl(prompt, seed, token), {

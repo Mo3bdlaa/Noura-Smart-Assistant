@@ -56,13 +56,18 @@ export async function POST(req: Request) {
   const turns = rows
     .filter((r) => r.role !== "system")
     .map((r) => ({ role: r.role === "assistant" ? ("assistant" as const) : ("user" as const), content: r.content }));
-  let title = "محادثة جانبية";
+  let title = "";
   try {
-    const gen = await generateTitle(turns, user.locale);
-    if (gen) title = gen;
+    title = (await generateTitle(turns, user.locale))?.trim() ?? "";
   } catch {
-    /* keep default */
+    /* fall back below */
   }
+  // Never leave it as the generic label: derive from the first moved user message.
+  if (!title) {
+    const firstUser = turns.find((m) => m.role === "user")?.content ?? "";
+    title = firstUser.replace(/\s+/g, " ").trim().slice(0, 32);
+  }
+  if (!title) title = user.locale === "en" ? "Side chat" : "محادثة جانبية";
   await setConversationTitle(ctx, side.id, title);
   await insertSideCard(ctx, side.id, title);
 

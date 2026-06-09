@@ -54,9 +54,16 @@ export function assembleSystem(input: AssembleInput): string {
     blocks.push(`إنتي بتكلمي: ${input.userDisplayName}.`);
   }
 
-  // canon (immutable self-facts)
+  // canon (immutable self-facts) — dedupe so repeats don't crowd the prompt
   if (input.canon.length) {
-    const facts = input.canon.slice(-20).map((c) => `- ${c.fact}`).join("\n");
+    const seen = new Set<string>();
+    const uniq = input.canon.filter((c) => {
+      const n = c.fact.toLowerCase().replace(/\s+/g, " ").trim();
+      if (!n || seen.has(n)) return false;
+      seen.add(n);
+      return true;
+    });
+    const facts = uniq.slice(-20).map((c) => `- ${c.fact}`).join("\n");
     blocks.push(`حقائق ثابتة عن نفسك قلتيها قبل كده (ممنوع تناقضيها):\n${facts}`);
   }
 

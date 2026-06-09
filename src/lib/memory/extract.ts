@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { assistants, memories, type CanonEntry, type MemoryType } from "@/lib/db/schema";
@@ -97,19 +97,34 @@ export async function processExchange(opts: {
   if (!reflection) return;
 
   if (opts.persistMemory && reflection.memories.length) {
-    const vectors = await embedBatch(reflection.memories.map((m) => m.content));
-    await db.insert(memories).values(
-      reflection.memories.map((m, i) => ({
-        userId: opts.userId,
-        assistantId: opts.assistantId,
-        sourceMessageId: opts.userMessageId,
-        type: m.type,
-        content: m.content,
-        structured: m.structured ?? null,
-        importance: m.importance,
-        embedding: vectors[i]!,
-      })),
-    );
+    // Skip memories whose exact content we already stored (avoids repeats piling up).
+    const contents = Array.from(new Set(reflection.memories.map((m) => m.content)));
+    const dupRows = await db
+      .select({ content: memories.content })
+      .from(memories)
+      .where(and(eq(memories.assistantId, opts.assistantId), inArray(memories.content, contents)));
+    const have = new Set(dupRows.map((r) => r.content));
+    const seenBatch = new Set<string>();
+    const fresh = reflection.memories.filter((m) => {
+      if (have.has(m.content) || seenBatch.has(m.content)) return false;
+      seenBatch.add(m.content);
+      return true;
+    });
+    if (fresh.length) {
+      const vectors = await embedBatch(fresh.map((m) => m.content));
+      await db.insert(memories).values(
+        fresh.map((m, i) => ({
+          userId: opts.userId,
+          assistantId: opts.assistantId,
+          sourceMessageId: opts.userMessageId,
+          type: m.type,
+          content: m.content,
+          structured: m.structured ?? null,
+          importance: m.importance,
+          embedding: vectors[i]!,
+        })),
+      );
+    }
   }
 
   if (opts.persistMemory && reflection.canon.length) {
@@ -136,6 +151,9 @@ export async function processExchange(opts: {
   }
 }
 
+const normFact = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+const CANON_CAP = 80; // keep canon bounded so the prompt never balloons
+
 async function appendCanon(assistantId: string, facts: string[], sourceMessageId: string) {
   const [row] = await db
     .select({ canon: assistants.canon })
@@ -143,10 +161,17 @@ async function appendCanon(assistantId: string, facts: string[], sourceMessageId
     .where(eq(assistants.id, assistantId))
     .limit(1);
   const existing = (row?.canon as CanonEntry[] | undefined) ?? [];
+  const seen = new Set(existing.map((e) => normFact(e.fact)));
   const now = new Date().toISOString();
-  const additions: CanonEntry[] = facts.map((fact) => ({ fact, statedAt: now, sourceMessageId }));
-  await db
-    .update(assistants)
-    .set({ canon: [...existing, ...additions] })
-    .where(eq(assistants.id, assistantId));
+  // Drop facts we already know (case/space-insensitive) and dups within this batch.
+  const additions: CanonEntry[] = [];
+  for (const fact of facts) {
+    const n = normFact(fact);
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    additions.push({ fact, statedAt: now, sourceMessageId });
+  }
+  if (additions.length === 0) return;
+  const merged = [...existing, ...additions].slice(-CANON_CAP);
+  await db.update(assistants).set({ canon: merged }).where(eq(assistants.id, assistantId));
 }

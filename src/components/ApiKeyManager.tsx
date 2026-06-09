@@ -16,7 +16,17 @@ type KeyItem = { id: string; masked: string; editable: boolean; source: string }
  * old write-only textarea. Keys are shown masked (first/last few chars) so you can
  * tell which is which, and a bad key can be deleted on its own.
  */
-export function ApiKeyManager() {
+export function ApiKeyManager({
+  endpoint = "/api/settings/provider/keys",
+  title,
+  hint,
+  placeholder = "AIza... / sk-or-...",
+}: {
+  endpoint?: string;
+  title?: string;
+  hint?: string;
+  placeholder?: string;
+} = {}) {
   const { t } = useI18n();
   const toast = useToast();
   const confirm = useConfirm();
@@ -27,7 +37,7 @@ export function ApiKeyManager() {
 
   async function load() {
     try {
-      const res = await fetch("/api/settings/provider/keys");
+      const res = await fetch(endpoint);
       if (res.ok) setKeys((await res.json()).keys ?? []);
     } finally {
       setLoading(false);
@@ -35,7 +45,8 @@ export function ApiKeyManager() {
   }
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint]);
 
   async function add() {
     const key = newKey.trim();
@@ -45,7 +56,7 @@ export function ApiKeyManager() {
     }
     setAdding(true);
     try {
-      const res = await fetch("/api/settings/provider/keys", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key }),
@@ -75,7 +86,7 @@ export function ApiKeyManager() {
       danger: true,
     });
     if (!ok) return;
-    const res = await fetch("/api/settings/provider/keys", {
+    const res = await fetch(endpoint, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: item.id }),
@@ -93,7 +104,7 @@ export function ApiKeyManager() {
     <div className="space-y-3">
       <div className="text-sm font-medium text-ink flex items-center gap-1.5">
         <KeyRound className="size-4 text-accent" />
-        {t("مفاتيح الـ API", "API keys")}
+        {title ?? t("مفاتيح الـ API", "API keys")}
         {!loading && (
           <span className="text-xs text-muted font-normal">
             ({keys.length} {t("مفتاح", keys.length === 1 ? "key" : "keys")})
@@ -101,10 +112,11 @@ export function ApiKeyManager() {
         )}
       </div>
       <p className="text-xs text-muted leading-relaxed">
-        {t(
-          "بيتبدّل بينهم تلقائياً لو واحد وصل حده. كل مفتاح بيظهر مخفي عشان تعرفه من غير ما يتكشف.",
-          "Rotated automatically when one is rate-limited. Each key is shown masked so you can recognize it without exposing it.",
-        )}
+        {hint ??
+          t(
+            "بيتبدّل بينهم تلقائياً لو واحد وصل حده. كل مفتاح بيظهر مخفي عشان تعرفه من غير ما يتكشف.",
+            "Rotated automatically when one is rate-limited. Each key is shown masked so you can recognize it without exposing it.",
+          )}
       </p>
 
       {/* existing keys as cards */}
@@ -159,7 +171,7 @@ export function ApiKeyManager() {
         <div className="flex-1">
           <Input
             dir="ltr"
-            placeholder="AIza... / sk-or-..."
+            placeholder={placeholder}
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
             onKeyDown={(e) => {

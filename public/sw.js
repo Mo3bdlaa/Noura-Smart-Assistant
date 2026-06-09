@@ -1,13 +1,13 @@
 /* Noura service worker — minimal & auth-safe.
    Only caches immutable static assets (icons + Next build output). Never caches
    HTML navigations or API responses, so logged-in/out state is never confused. */
-const CACHE = "noura-static-v1";
+const CACHE = "noura-static-v2";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE).then((c) =>
-      c.addAll(["/icon.svg", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest"]),
+      c.addAll(["/icon.svg", "/icon-192.png", "/icon-512.png", "/badge.png", "/manifest.webmanifest"]),
     ),
   );
 });
@@ -34,7 +34,7 @@ self.addEventListener("push", (e) => {
     self.registration.showNotification(title, {
       body: data.body || "",
       icon: "/icon-192.png",
-      badge: "/icon-192.png",
+      badge: "/badge.png",
       lang: "ar",
       dir: "rtl",
       data: { url: data.url || "/chat" },

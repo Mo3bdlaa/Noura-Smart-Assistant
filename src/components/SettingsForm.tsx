@@ -74,9 +74,7 @@ export function SettingsForm({
     chatModel: provider?.chatModel ?? "",
     utilityModel: provider?.utilityModel ?? "",
     embedModel: provider?.embedModel ?? "",
-    elevenLabsKeys: "",
     voiceId: provider?.voiceId ?? "",
-    imageGenToken: "",
     chatBase: "",
     chatKeys: "",
     utilBase: "",
@@ -100,9 +98,7 @@ export function SettingsForm({
           chatModel: prov.chatModel,
           utilityModel: prov.utilityModel,
           embedModel: prov.embedModel,
-          elevenLabsKeys: prov.elevenLabsKeys,
           voiceId: prov.voiceId,
-          imageGenToken: prov.imageGenToken,
           chat: { baseUrl: prov.chatBase, apiKeys: prov.chatKeys },
           utility: { baseUrl: prov.utilBase, apiKeys: prov.utilKeys },
           embed: { baseUrl: prov.embBase, apiKeys: prov.embKeys },
@@ -372,21 +368,17 @@ export function SettingsForm({
                   onChange={(e) => setProv((p) => ({ ...p, embedModel: e.target.value }))}
                 />
               </Field>
-              <Field
-                label={t("صوتها (ElevenLabs — مفتاح في كل سطر)", "Her voice (ElevenLabs — one key per line)")}
-                hint={t(
-                  "بتتبدّل بينهم وتبرّد اللي يوصل حده — كل حساب مجاني بيزوّد الكوتا. سيبه فاضي عشان متغيّرش.",
-                  "Rotated with cooldown — each free account adds quota. Leave empty to keep.",
-                )}
-              >
-                <Textarea
-                  dir="ltr"
-                  rows={2}
-                  placeholder={"sk_...\nsk_..."}
-                  value={prov.elevenLabsKeys}
-                  onChange={(e) => setProv((p) => ({ ...p, elevenLabsKeys: e.target.value }))}
+              <div className="rounded-2xl border border-border bg-bg/40 p-3">
+                <ApiKeyManager
+                  endpoint="/api/settings/provider/voice-keys"
+                  title={t("مفاتيح الصوت (ElevenLabs)", "Voice keys (ElevenLabs)")}
+                  hint={t(
+                    "بتتبدّل وتبرّد اللي يوصل حده — كل حساب مجاني بيزوّد الكوتا.",
+                    "Rotated with cooldown — each free account adds quota.",
+                  )}
+                  placeholder="sk_..."
                 />
-              </Field>
+              </div>
               <Field label={t("Voice ID العام (اختياري)", "Default Voice ID (optional)")} hint={t("صوت افتراضي لو المساعد مالوش صوت خاص", "default when an assistant has no own voice")}>
                 <Input
                   dir="ltr"
@@ -395,21 +387,17 @@ export function SettingsForm({
                   onChange={(e) => setProv((p) => ({ ...p, voiceId: e.target.value }))}
                 />
               </Field>
-              <Field
-                label={t("توليد الصور (Pollinations token)", "Image gen (Pollinations token)")}
-                hint={t(
-                  "توكن مجاني من enter.pollinations.ai عشان توليد صورها يبقى موثوق. سيبه فاضي عشان متغيّرش.",
-                  "Free token from enter.pollinations.ai for reliable selfie generation. Leave empty to keep.",
-                )}
-              >
-                <Input
-                  dir="ltr"
-                  type="password"
+              <div className="rounded-2xl border border-border bg-bg/40 p-3">
+                <ApiKeyManager
+                  endpoint="/api/settings/provider/image-keys"
+                  title={t("توكنات توليد الصور (Pollinations)", "Image-gen tokens (Pollinations)")}
+                  hint={t(
+                    "توكن مجاني من enter.pollinations.ai عشان توليد صورها يبقى موثوق.",
+                    "Free token from enter.pollinations.ai for reliable selfie generation.",
+                  )}
                   placeholder="token..."
-                  value={prov.imageGenToken}
-                  onChange={(e) => setProv((p) => ({ ...p, imageGenToken: e.target.value }))}
                 />
-              </Field>
+              </div>
               {/* per-role overrides */}
               <button
                 type="button"
