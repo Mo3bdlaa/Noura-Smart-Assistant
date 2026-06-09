@@ -266,7 +266,7 @@ export const pendingInitiatives = pgTable(
       .notNull()
       .references(() => assistants.id, { onDelete: "cascade" }),
     kind: text("kind", {
-      enum: ["security", "followup", "time", "reminder", "mood", "dream"],
+      enum: ["security", "followup", "time", "reminder", "mood", "dream", "life"],
     }).notNull(),
     payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
     priority: integer("priority").notNull().default(5),
@@ -278,6 +278,28 @@ export const pendingInitiatives = pgTable(
     byScope: index("pending_initiatives_scope_idx").on(t.assistantId, t.surfacedAt),
   }),
 );
+
+// Noura's private nightly diary — one entry per local day, surfaced on the timeline.
+export const diaries = pgTable(
+  "diaries",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assistantId: uuid("assistant_id")
+      .notNull()
+      .references(() => assistants.id, { onDelete: "cascade" }),
+    localDate: text("local_date").notNull(), // YYYY-MM-DD in the user's timezone
+    content: text("content").notNull(), // her first-person entry
+    mood: text("mood"), // short mood label for that day
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byDay: uniqueIndex("diaries_assistant_day_idx").on(t.assistantId, t.localDate),
+  }),
+);
+export type Diary = typeof diaries.$inferSelect;
 
 // Async work queue (memory extraction; seam for the future nightly consolidation job).
 export const jobs = pgTable(

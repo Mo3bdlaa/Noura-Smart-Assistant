@@ -6,6 +6,7 @@ import {
   Heart,
   MessageCircle,
   MessageCircleHeart,
+  NotebookPen,
   Sparkles,
   Star,
   Sunrise,
@@ -32,6 +33,7 @@ type TimelineData = {
   mood: MoodPoint[];
   milestones: Milestone[];
   closeness: number;
+  diary: { date: string; content: string; mood: string | null }[];
 };
 
 export default function TimelinePage() {
@@ -84,6 +86,26 @@ export default function TimelinePage() {
 
           {/* mood over time */}
           <MoodChart mood={data.mood} t={t} />
+
+          {/* her nightly diary */}
+          {data.diary?.length > 0 && (
+            <>
+              <h2 className="text-sm font-semibold text-muted mt-6 mb-3 flex items-center gap-1.5">
+                <NotebookPen className="size-4 text-accent" /> {t("يومياتها", "Her diary")}
+              </h2>
+              <div className="space-y-3">
+                {data.diary.map((d) => (
+                  <Card key={d.date} className="p-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-accent">{fmtDate(d.date)}</span>
+                      {d.mood && <span className="text-[11px] text-muted">{d.mood}</span>}
+                    </div>
+                    <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{d.content}</p>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* milestones */}
           <h2 className="text-sm font-semibold text-muted mt-6 mb-3 flex items-center gap-1.5">

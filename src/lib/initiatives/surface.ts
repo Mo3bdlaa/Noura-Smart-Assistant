@@ -22,6 +22,9 @@ function frame(init: PendingInitiative, timezone: string): string {
     case "dream":
       // already a fully-written, first-person line — surface it almost verbatim.
       return String(p.text ?? "");
+    case "life":
+      // something from her own day she wants to bring up casually.
+      return `حاجة من يومك إنتي حابة تفتحي بيها معاه بتلقائية: ${String(p.text ?? "")}`;
     default:
       return "";
   }

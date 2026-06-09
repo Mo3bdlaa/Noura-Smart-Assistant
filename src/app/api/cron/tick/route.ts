@@ -5,6 +5,7 @@ import { assistants, pushSubscriptions } from "@/lib/db/schema";
 import { drainJobs } from "@/lib/jobs/worker";
 import { generateReminderInitiatives } from "@/lib/initiatives/generate";
 import { generateDreamInitiatives } from "@/lib/dreams/generate";
+import { generateNightlyReflection } from "@/lib/diary/generate";
 import { runDueTasks } from "@/lib/tasks/run";
 
 /**
@@ -50,6 +51,12 @@ export async function GET(req: Request) {
       await generateDreamInitiatives(userId, a.id, { notify: true });
     } catch {
       /* a failed dream shouldn't break the sweep */
+    }
+    // Nightly: her private diary + a casual "from my day" line for next time.
+    try {
+      await generateNightlyReflection(userId, a.id);
+    } catch {
+      /* a failed diary shouldn't break the sweep */
     }
     swept++;
   }

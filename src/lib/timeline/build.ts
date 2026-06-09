@@ -1,6 +1,6 @@
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { conversations, memories, messages } from "@/lib/db/schema";
+import { conversations, diaries, memories, messages } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant";
 import { readMood } from "@/lib/mood/state";
 import { moodHistory, type MoodPoint } from "./snapshot";
@@ -28,6 +28,8 @@ export type TimelineData = {
   milestones: Milestone[];
   /** Slow-moving relationship bond, 0..1. */
   closeness: number;
+  /** Her recent nightly diary entries (newest first). */
+  diary: { date: string; content: string; mood: string | null }[];
 };
 
 const MSG_THRESHOLDS = [100, 500, 1000, 5000, 10000];
@@ -125,6 +127,13 @@ export async function buildTimeline(ctx: TenantContext): Promise<TimelineData> {
   const mood = await moodHistory(ctx.assistantId);
   const { closeness } = await readMood(ctx.assistantId);
 
+  const diaryRows = await db
+    .select({ date: diaries.localDate, content: diaries.content, mood: diaries.mood })
+    .from(diaries)
+    .where(eq(diaries.assistantId, ctx.assistantId))
+    .orderBy(desc(diaries.localDate))
+    .limit(14);
+
   return {
     startedAt: startedAt?.toISOString() ?? null,
     daysTogether,
@@ -134,5 +143,6 @@ export async function buildTimeline(ctx: TenantContext): Promise<TimelineData> {
     mood,
     milestones,
     closeness,
+    diary: diaryRows,
   };
 }
