@@ -87,6 +87,9 @@ export const conversations = pgTable(
     title: text("title"),
     // Optional roleplay/setup prompt for incognito conversations.
     scenario: text("scenario"),
+    // Rolling summary of older turns so long chats stay light without losing continuity.
+    summary: text("summary"),
+    summaryThrough: timestamp("summary_through", { withTimezone: true }),
     isArchived: boolean("is_archived").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

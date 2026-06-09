@@ -124,22 +124,27 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  const body = (await req.json().catch(() => null)) as { text?: string } | null;
+  const body = (await req.json().catch(() => null)) as { text?: string; voice?: string } | null;
   const text = (body?.text ?? "").replace(/[*_#`>~]/g, "").trim().slice(0, 800);
   if (!text) return new NextResponse(null, { status: 204 });
 
-  // Her configured voice — a Gemini voice name if set, else a warm default.
-  let configured: string | null = null;
-  try {
-    const ctx = await tenantForUser(user.id, user.role);
-    const [a] = await db
-      .select({ voiceId: assistants.voiceId })
-      .from(assistants)
-      .where(eq(assistants.id, ctx.assistantId))
-      .limit(1);
-    configured = a?.voiceId ?? null;
-  } catch {
-    /* ignore */
+  // An explicit voice (e.g. previewing one in settings) overrides her saved voice.
+  const override = body?.voice && GEMINI_VOICE_NAMES.has(body.voice) ? body.voice : null;
+
+  // Her configured voice — preview override, else her saved Gemini voice, else default.
+  let configured: string | null = override;
+  if (!configured) {
+    try {
+      const ctx = await tenantForUser(user.id, user.role);
+      const [a] = await db
+        .select({ voiceId: assistants.voiceId })
+        .from(assistants)
+        .where(eq(assistants.id, ctx.assistantId))
+        .limit(1);
+      configured = a?.voiceId ?? null;
+    } catch {
+      /* ignore */
+    }
   }
   const geminiVoice = configured && GEMINI_VOICE_NAMES.has(configured) ? configured : DEFAULT_GEMINI_VOICE;
 

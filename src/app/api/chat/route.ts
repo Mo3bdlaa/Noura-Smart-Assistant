@@ -29,6 +29,7 @@ import {
 } from "@/lib/chat/store";
 import { parseLeadTags, couldBeLeadTag, controlFrame } from "@/lib/chat/react-tag";
 import { pickThrowback } from "@/lib/memory/throwback";
+import { getConversationSummary, maybeSummarize } from "@/lib/memory/summarize";
 import { buildSelfieUrl } from "@/lib/image/generate";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
@@ -127,11 +128,14 @@ export async function POST(req: Request) {
     return [];
   });
 
-  const [history, memories, mood, profile] = await Promise.all([
+  const [history, memories, mood, profile, summary] = await Promise.all([
     recentHistory(conversationId),
     safeRetrieve,
     readMood(ctx.assistantId),
     getProfile(ctx.assistantId).catch(() => null),
+    conv.type === "incognito"
+      ? Promise.resolve(null)
+      : getConversationSummary(conversationId).catch(() => null),
   ]);
 
   // Now and then, once there's history, she spontaneously reminisces about an old
@@ -156,6 +160,7 @@ export async function POST(req: Request) {
     canon: (assistant?.canon as CanonEntry[]) ?? [],
     mood,
     memories,
+    summary,
     userNotes: profile?.userNotes,
     appearance: assistant?.appearance ?? null,
     time: timeContext(user.timezone),
@@ -196,6 +201,14 @@ export async function POST(req: Request) {
         }
       } catch (e) {
         console.error("title gen failed", e);
+      }
+    }
+    // Fold older turns into a rolling summary so long chats stay light (skip incognito).
+    if (conv.type !== "incognito") {
+      try {
+        await maybeSummarize(conversationId, user.locale);
+      } catch (e) {
+        console.error("summarize failed", e);
       }
     }
     // Keep her evolving read on the user fresh (skip incognito).

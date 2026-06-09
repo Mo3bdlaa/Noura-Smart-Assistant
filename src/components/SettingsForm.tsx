@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Cpu, Languages, LogOut, Lock, Moon, Palette, Settings, Smartphone, Sun, SunMoon, User } from "lucide-react";
+import { Cpu, Languages, LogOut, Lock, Moon, Palette, Settings, Smartphone, Sun, SunMoon, User, Volume2 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Field } from "@/components/ui/Input";
@@ -70,6 +70,35 @@ export function SettingsForm({
 
   const [profile, setProfile] = useState(initial);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+
+  async function previewVoice() {
+    setPreviewing(true);
+    try {
+      const voice = profile.voiceId || DEFAULT_GEMINI_VOICE;
+      const sample = t(
+        `أهلاً، أنا ${profile.assistantName || "نورا"}. سعيدة إني بكلمك بصوتي.`,
+        `Hi, I'm ${profile.assistantName || "Noura"}. Happy to talk to you in my voice.`,
+      );
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: sample, voice }),
+      });
+      if (res.ok && (res.headers.get("content-type") ?? "").includes("audio")) {
+        const url = URL.createObjectURL(await res.blob());
+        const a = new Audio(url);
+        a.onended = () => URL.revokeObjectURL(url);
+        await a.play();
+      } else {
+        toast(t("مش قادرة أشغّل العيّنة", "Couldn't play a sample"), "error");
+      }
+    } catch {
+      toast(t("مش قادرة أشغّل العيّنة", "Couldn't play a sample"), "error");
+    } finally {
+      setPreviewing(false);
+    }
+  }
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
   const [savingPw, setSavingPw] = useState(false);
   const [prov, setProv] = useState({
@@ -288,18 +317,29 @@ export function SettingsForm({
                 onChange={(e) => setProfile((p) => ({ ...p, appearance: e.target.value }))}
               />
             </Field>
-            <Field label={t("صوتها", "Her voice")} hint={t("صوت Gemini اللي بتتكلم بيه", "the Gemini voice she speaks with")}>
-              <select
-                value={profile.voiceId || DEFAULT_GEMINI_VOICE}
-                onChange={(e) => setProfile((p) => ({ ...p, voiceId: e.target.value }))}
-                className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
-              >
-                {GEMINI_VOICE_OPTIONS.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name} — {t(v.ar, v.en)}
-                  </option>
-                ))}
-              </select>
+            <Field label={t("صوتها", "Her voice")} hint={t("اختار وادوس اسمع لتجربة الصوت", "pick one and tap listen to hear it")}>
+              <div className="flex items-center gap-2">
+                <select
+                  value={profile.voiceId || DEFAULT_GEMINI_VOICE}
+                  onChange={(e) => setProfile((p) => ({ ...p, voiceId: e.target.value }))}
+                  className="flex-1 h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
+                >
+                  {GEMINI_VOICE_OPTIONS.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.name} — {t(v.ar, v.en)}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  loading={previewing}
+                  onClick={previewVoice}
+                  className="shrink-0"
+                >
+                  <Volume2 className="size-4" /> {t("اسمع", "Listen")}
+                </Button>
+              </div>
             </Field>
 
             {/* personality dials */}

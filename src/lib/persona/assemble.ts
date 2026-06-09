@@ -16,6 +16,8 @@ export type AssembleInput = {
   canon: CanonEntry[];
   mood: MoodSnapshot;
   memories: RetrievedMemory[];
+  /** Rolling recap of earlier turns in this conversation (beyond recent history). */
+  summary?: string | null;
   time: TimeContext;
   userDisplayName?: string | null;
   /** Pre-framed things Noura should bring up naturally (security, follow-ups, time). */
@@ -80,6 +82,11 @@ export function assembleSystem(input: AssembleInput): string {
 
   // (2) dynamic mood/relationship snapshot
   blocks.push(`حالتك دلوقتي: ${describeMood(input.mood)}`);
+
+  // (3a) rolling recap of earlier turns (continuity in long chats)
+  if (input.summary?.trim()) {
+    blocks.push(`ملخص اللي حصل في المحادثة دي قبل كده (للسياق فقط، متعيديهوش):\n${input.summary.trim()}`);
+  }
 
   // (3) retrieved memories
   if (input.memories.length) {
