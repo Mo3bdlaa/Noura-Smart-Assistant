@@ -7,18 +7,11 @@ import { assistants } from "@/lib/db/schema";
 import { getSetting } from "@/lib/settings";
 import { getApiKeys, markCooling, pickKey } from "@/lib/llm/keys";
 import { getVoiceKeys, markVoiceCooling, pickVoiceKey } from "@/lib/voice/keys";
+import { DEFAULT_GEMINI_VOICE, GEMINI_VOICE_NAMES } from "@/lib/voice/gemini-voices";
 
 export const maxDuration = 30;
 
 const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
-// Prebuilt Gemini voices (warmer female-leaning default for her).
-const GEMINI_VOICES = new Set([
-  "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe",
-  "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib",
-  "Rasalgethi", "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima",
-  "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
-]);
-const DEFAULT_GEMINI_VOICE = "Aoede";
 const DEFAULT_ELEVEN_VOICE = "21m00Tcm4TlvDq8ikWAM";
 
 /** Wrap raw PCM (signed 16-bit LE, mono) in a minimal WAV container. */
@@ -148,7 +141,7 @@ export async function POST(req: Request) {
   } catch {
     /* ignore */
   }
-  const geminiVoice = configured && GEMINI_VOICES.has(configured) ? configured : DEFAULT_GEMINI_VOICE;
+  const geminiVoice = configured && GEMINI_VOICE_NAMES.has(configured) ? configured : DEFAULT_GEMINI_VOICE;
 
   const fromGemini = await geminiTTS(text, geminiVoice);
   if (fromGemini) return fromGemini;

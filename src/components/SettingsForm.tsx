@@ -9,6 +9,7 @@ import { Input, Textarea, Field } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { ApiKeyManager } from "@/components/ApiKeyManager";
+import { GEMINI_VOICE_OPTIONS, DEFAULT_GEMINI_VOICE } from "@/lib/voice/gemini-voices";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
@@ -38,6 +39,9 @@ export function SettingsForm({
     assistantName: string;
     appearance: string;
     voiceId: string;
+    playfulness: number;
+    bluntness: number;
+    warmth: number;
   };
   provider?: {
     baseUrl: string;
@@ -126,7 +130,18 @@ export function SettingsForm({
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({
+          displayName: profile.displayName,
+          timezone: profile.timezone,
+          assistantName: profile.assistantName,
+          appearance: profile.appearance,
+          voiceId: profile.voiceId,
+          dials: {
+            playfulness: profile.playfulness,
+            bluntness: profile.bluntness,
+            warmth: profile.warmth,
+          },
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -273,14 +288,48 @@ export function SettingsForm({
                 onChange={(e) => setProfile((p) => ({ ...p, appearance: e.target.value }))}
               />
             </Field>
-            <Field label={t("صوتها (Voice ID)", "Her voice (Voice ID)")} hint={t("من ElevenLabs — سيبه فاضي للصوت الافتراضي", "from ElevenLabs — empty for the default voice")}>
-              <Input
-                dir="ltr"
-                placeholder="21m00Tcm4TlvDq8ikWAM"
-                value={profile.voiceId}
+            <Field label={t("صوتها", "Her voice")} hint={t("صوت Gemini اللي بتتكلم بيه", "the Gemini voice she speaks with")}>
+              <select
+                value={profile.voiceId || DEFAULT_GEMINI_VOICE}
                 onChange={(e) => setProfile((p) => ({ ...p, voiceId: e.target.value }))}
-              />
+                className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
+              >
+                {GEMINI_VOICE_OPTIONS.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name} — {t(v.ar, v.en)}
+                  </option>
+                ))}
+              </select>
             </Field>
+
+            {/* personality dials */}
+            <div className="space-y-3 pt-1">
+              <div className="text-sm font-medium text-ink">{t("معايرة شخصيتها", "Her personality")}</div>
+              {(
+                [
+                  ["playfulness", t("الهزار والدلع", "Playfulness")],
+                  ["bluntness", t("الصراحة والـ push back", "Bluntness")],
+                  ["warmth", t("الحنية", "Warmth")],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key}>
+                  <div className="flex items-center justify-between text-xs text-muted mb-1">
+                    <span>{label}</span>
+                    <span>{Math.round((profile[key] as number) * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={profile[key] as number}
+                    onChange={(e) => setProfile((p) => ({ ...p, [key]: Number(e.target.value) }))}
+                    className="w-full accent-accent"
+                  />
+                </div>
+              ))}
+            </div>
+
             <Button type="submit" loading={savingProfile}>
               {t("حفظ", "Save")}
             </Button>
