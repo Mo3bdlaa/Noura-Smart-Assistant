@@ -14,7 +14,7 @@ export default async function ProfilePage() {
   const ctx = await tenantForUser(user.id, user.role);
 
   const [a] = await db
-    .select({ name: assistants.name, canon: assistants.canon })
+    .select({ name: assistants.name, canon: assistants.canon, avatarUrl: assistants.avatarUrl })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -30,6 +30,7 @@ export default async function ProfilePage() {
       report={(profile?.report as ProfileReport) ?? null}
       summary={profile?.summary ?? null}
       initialNotes={profile?.userNotes ?? ""}
+      initialAvatar={a?.avatarUrl ?? null}
     />
   );
 }

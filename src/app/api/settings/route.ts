@@ -14,6 +14,7 @@ const Body = z.object({
   locale: z.enum(["ar", "en"]).optional(),
   appearance: z.string().trim().max(1500).optional(),
   voiceId: z.string().trim().max(100).optional(),
+  avatarUrl: z.string().max(2_800_000).optional(), // data URL, downscaled client-side
 });
 
 function isValidTimezone(tz: string): boolean {
@@ -33,18 +34,19 @@ export async function PATCH(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "بيانات غير صحيحة" }, { status: 400 });
   }
-  const { displayName, timezone, assistantName, locale, appearance, voiceId } = parsed.data;
+  const { displayName, timezone, assistantName, locale, appearance, voiceId, avatarUrl } = parsed.data;
 
   if (timezone && !isValidTimezone(timezone)) {
     return NextResponse.json({ error: "منطقة زمنية غير معروفة" }, { status: 400 });
   }
 
-  // Per-assistant profile fields (her look + her voice).
-  if (appearance !== undefined || voiceId !== undefined) {
+  // Per-assistant profile fields (her look, voice, and photo).
+  if (appearance !== undefined || voiceId !== undefined || avatarUrl !== undefined) {
     const ctx = await tenantForUser(user.id, user.role);
     const aUpdate: Partial<typeof assistants.$inferInsert> = {};
     if (appearance !== undefined) aUpdate.appearance = appearance || null;
     if (voiceId !== undefined) aUpdate.voiceId = voiceId || null;
+    if (avatarUrl !== undefined) aUpdate.avatarUrl = avatarUrl || null;
     await db.update(assistants).set(aUpdate).where(eq(assistants.id, ctx.assistantId));
   }
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Brain, Sparkles, UserRound } from "lucide-react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Brain, Camera, Sparkles, UserRound } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +20,7 @@ export function ProfileView({
   report,
   summary,
   initialNotes,
+  initialAvatar,
 }: {
   assistantName: string;
   mood: "happy" | "calm" | "upset";
@@ -26,11 +28,63 @@ export function ProfileView({
   report: ProfileReport | null;
   summary: string | null;
   initialNotes: string;
+  initialAvatar: string | null;
 }) {
   const { t } = useI18n();
   const toast = useToast();
+  const router = useRouter();
   const [notes, setNotes] = useState(initialNotes);
   const [saving, setSaving] = useState(false);
+  const [avatar, setAvatar] = useState<string | null>(initialAvatar);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInput = useRef<HTMLInputElement>(null);
+
+  function pickAvatar(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 512;
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const cx = canvas.getContext("2d");
+          if (!cx) return reject(new Error("no canvas"));
+          cx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function onAvatarFile(file: File | undefined) {
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await pickAvatar(file);
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarUrl: url }),
+      });
+      if (!res.ok) {
+        toast(t("مش قادر أغيّر الصورة", "Couldn't change the photo"), "error");
+        return;
+      }
+      setAvatar(url);
+      toast(t("اتغيّرت ✅", "Updated ✅"), "success");
+      router.refresh(); // reflect in the sidebar/header
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInput.current) avatarInput.current.value = "";
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -55,7 +109,28 @@ export function ProfileView({
       {/* assistant card */}
       <Card className="p-5 mb-5">
         <div className="flex items-center gap-4">
-          <Avatar name={assistantName} size="xl" mood={mood} />
+          <button
+            type="button"
+            onClick={() => avatarInput.current?.click()}
+            className="relative shrink-0 rounded-full group"
+            aria-label={t("غيّر صورتها", "Change her photo")}
+          >
+            <Avatar name={assistantName} photo={avatar} size="xl" mood={mood} />
+            <span className="absolute -bottom-0.5 -end-0.5 size-7 grid place-items-center rounded-full bg-accent text-on-accent ring-2 ring-surface">
+              {uploadingAvatar ? (
+                <span className="size-3.5 rounded-full border-2 border-on-accent/40 border-t-on-accent animate-spin" />
+              ) : (
+                <Camera className="size-3.5" />
+              )}
+            </span>
+          </button>
+          <input
+            ref={avatarInput}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => onAvatarFile(e.target.files?.[0])}
+          />
           <div>
             <div className="text-xl font-extrabold text-ink">{assistantName}</div>
             <div className="text-sm text-muted">
