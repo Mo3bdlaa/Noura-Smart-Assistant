@@ -23,6 +23,8 @@ const Body = z.object({
   // ElevenLabs voice (her real spoken voice) — pool of keys, one per line.
   elevenLabsKeys: z.string().trim().max(4000).optional(),
   voiceId: z.string().trim().max(100).optional(),
+  // Image generation (Pollinations) — optional free token for reliable selfies.
+  imageGenToken: z.string().trim().max(200).optional(),
   // per-role overrides
   chat: Role.optional(),
   utility: Role.optional(),
@@ -56,6 +58,7 @@ export async function POST(req: Request) {
   if (d.embedModel) await setSetting("llm_embed_model", d.embedModel);
   if (d.elevenLabsKeys) await setSetting("elevenlabs_api_keys", cleanKeys(d.elevenLabsKeys));
   if (d.voiceId) await setSetting("elevenlabs_voice_id", d.voiceId.trim());
+  if (d.imageGenToken) await setSetting("image_gen_token", d.imageGenToken.trim());
 
   for (const role of ["chat", "utility", "embed"] as const) {
     const r = d[role];

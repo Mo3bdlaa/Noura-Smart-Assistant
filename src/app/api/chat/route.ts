@@ -29,6 +29,7 @@ import {
 } from "@/lib/chat/store";
 import { parseLeadTags, couldBeLeadTag, controlFrame } from "@/lib/chat/react-tag";
 import { pickThrowback } from "@/lib/memory/throwback";
+import { buildSelfieUrl } from "@/lib/image/generate";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
@@ -251,6 +252,10 @@ export async function POST(req: Request) {
         if (photo) {
           try {
             resolvedPhoto = await pickAssistantPhoto(ctx!.assistantId, photoTag);
+            // No uploaded photo? Generate a selfie from her appearance (free, no key).
+            if (!resolvedPhoto && assistant?.appearance) {
+              resolvedPhoto = buildSelfieUrl(assistant.appearance, photoTag);
+            }
           } catch {
             /* ignore photo resolution errors */
           }

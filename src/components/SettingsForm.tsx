@@ -76,6 +76,7 @@ export function SettingsForm({
     embedModel: provider?.embedModel ?? "",
     elevenLabsKeys: "",
     voiceId: provider?.voiceId ?? "",
+    imageGenToken: "",
     chatBase: "",
     chatKeys: "",
     utilBase: "",
@@ -101,6 +102,7 @@ export function SettingsForm({
           embedModel: prov.embedModel,
           elevenLabsKeys: prov.elevenLabsKeys,
           voiceId: prov.voiceId,
+          imageGenToken: prov.imageGenToken,
           chat: { baseUrl: prov.chatBase, apiKeys: prov.chatKeys },
           utility: { baseUrl: prov.utilBase, apiKeys: prov.utilKeys },
           embed: { baseUrl: prov.embBase, apiKeys: prov.embKeys },
@@ -385,12 +387,27 @@ export function SettingsForm({
                   onChange={(e) => setProv((p) => ({ ...p, elevenLabsKeys: e.target.value }))}
                 />
               </Field>
-              <Field label={t("Voice ID (اختياري)", "Voice ID (optional)")} hint={t("من حسابك في ElevenLabs", "from your ElevenLabs account")}>
+              <Field label={t("Voice ID العام (اختياري)", "Default Voice ID (optional)")} hint={t("صوت افتراضي لو المساعد مالوش صوت خاص", "default when an assistant has no own voice")}>
                 <Input
                   dir="ltr"
                   placeholder="21m00Tcm4TlvDq8ikWAM"
                   value={prov.voiceId}
                   onChange={(e) => setProv((p) => ({ ...p, voiceId: e.target.value }))}
+                />
+              </Field>
+              <Field
+                label={t("توليد الصور (Pollinations token)", "Image gen (Pollinations token)")}
+                hint={t(
+                  "توكن مجاني من enter.pollinations.ai عشان توليد صورها يبقى موثوق. سيبه فاضي عشان متغيّرش.",
+                  "Free token from enter.pollinations.ai for reliable selfie generation. Leave empty to keep.",
+                )}
+              >
+                <Input
+                  dir="ltr"
+                  type="password"
+                  placeholder="token..."
+                  value={prov.imageGenToken}
+                  onChange={(e) => setProv((p) => ({ ...p, imageGenToken: e.target.value }))}
                 />
               </Field>
               {/* per-role overrides */}
