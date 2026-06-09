@@ -138,6 +138,46 @@ export default function RemindersPage() {
         });
   }
 
+  // Next time this fires (yearly dates → upcoming anniversary).
+  function nextOccurrence(r: Reminder): Date | null {
+    if (!r.dueAt) return null;
+    const d = new Date(r.dueAt);
+    if (r.recurrence === "yearly") {
+      const now = new Date();
+      const next = new Date(d);
+      next.setFullYear(now.getFullYear());
+      const todayMid = new Date(now);
+      todayMid.setHours(0, 0, 0, 0);
+      if (next < todayMid) next.setFullYear(now.getFullYear() + 1);
+      return next;
+    }
+    return d;
+  }
+
+  function countdown(r: Reminder): { label: string; tone: "accent" | "warm" } | null {
+    const date = nextOccurrence(r);
+    if (!date) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tgt = new Date(date);
+    tgt.setHours(0, 0, 0, 0);
+    const days = Math.round((tgt.getTime() - today.getTime()) / 86_400_000);
+    if (days < 0) return null;
+    if (days === 0) return { label: t("النهاردة", "Today"), tone: "accent" };
+    if (days === 1) return { label: t("بكرة", "Tomorrow"), tone: "accent" };
+    return { label: t(`باقي ${days} يوم`, `in ${days}d`), tone: days <= 7 ? "warm" : "accent" };
+  }
+
+  // Soonest upcoming first; past non-recurring ones sink to the bottom.
+  const sortedItems = [...items].sort((a, b) => {
+    const na = nextOccurrence(a);
+    const nb = nextOccurrence(b);
+    const pa = !!(na && na < new Date() && a.recurrence !== "yearly");
+    const pb = !!(nb && nb < new Date() && b.recurrence !== "yearly");
+    if (pa !== pb) return pa ? 1 : -1;
+    return (na?.getTime() ?? Infinity) - (nb?.getTime() ?? Infinity);
+  });
+
   return (
     <PageShell title={t("التذكيرات والمناسبات", "Reminders & dates")} icon={<Bell className="size-5" />}>
       {/* add form */}
@@ -209,8 +249,9 @@ export default function RemindersPage() {
         </EmptyState>
       ) : (
         <ul className="space-y-2">
-          {items.map((r) => {
+          {sortedItems.map((r) => {
             const past = r.dueAt && new Date(r.dueAt) < new Date() && !r.recurrence;
+            const cd = past ? null : countdown(r);
             return (
               <li
                 key={r.id}
@@ -232,8 +273,9 @@ export default function RemindersPage() {
                   <div className={cn("text-ink truncate", past && "line-through text-muted")}>
                     {r.title}
                   </div>
-                  <div className="text-xs text-muted flex items-center gap-1.5">
+                  <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
                     {fmt(r)}
+                    {cd && <Chip tone={cd.tone}>{cd.label}</Chip>}
                     {r.recurrence === "yearly" && <Chip tone="warm">{t("كل سنة", "Yearly")}</Chip>}
                   </div>
                 </div>
