@@ -297,7 +297,10 @@ export async function POST(req: Request) {
       } finally {
         if (!decided) await decide(); // stream ended while still buffering
         const { reaction, rest } = parseLeadTags(full);
-        const replyText = rest.trim();
+        // The model sometimes wraps a voice note (e.g. trailing </voice>) — treat any
+        // stray voice tag as voice and strip it so it never leaks into the text.
+        if (/<\/?voice>/i.test(rest)) isVoice = true;
+        const replyText = rest.replace(/<\/?voice>/gi, "").trim();
 
         // A reaction goes onto the user's message; the reply (if any) is saved separately,
         // carrying the quoted-reply snapshot so it renders on reload too.

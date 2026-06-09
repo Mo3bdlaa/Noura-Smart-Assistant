@@ -328,13 +328,20 @@ export function ChatWindow({
         } else {
           acc += chunk;
         }
-        setMessages((m) => m.map((x) => (x.id === draftId ? { ...x, content: acc } : x)));
+        // Safety net: the model may leak a stray <voice>/</voice> — strip it from the
+        // shown text and treat it as a voice note even if it arrived late.
+        if (!draftIsVoice && /<\/?voice>/i.test(acc)) draftIsVoice = true;
+        const display = acc.replace(/<\/?voice>/gi, "");
+        setMessages((m) =>
+          m.map((x) => (x.id === draftId ? { ...x, content: display, voice: x.voice || draftIsVoice } : x)),
+        );
       }
+      const finalText = acc.replace(/<\/?voice>/gi, "").trim();
       // React-only turn (just an emoji, no words, no photo) → drop the empty bubble.
-      if (acc.trim() === "" && !draftHasPhoto) {
+      if (finalText === "" && !draftHasPhoto) {
         setMessages((m) => m.filter((x) => x.id !== draftId));
-      } else if (acc.trim() && !draftIsVoice) {
-        speak(acc); // voice notes have their own player
+      } else if (finalText && !draftIsVoice) {
+        speak(finalText); // voice notes have their own player
       }
       router.refresh();
     } catch (e) {
