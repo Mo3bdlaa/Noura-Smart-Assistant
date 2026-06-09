@@ -149,9 +149,11 @@ export function ChatWindow({
 
   // --- voice: dictation (STT) + read-aloud (TTS), both free & browser-native ---
   const [ttsOn, setTtsOn] = useState(false);
-  const [listening, setListening] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recogRef = useRef<any>(null);
+  const [listening, setListening] = useState(false); // recording
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const micStreamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -206,31 +208,85 @@ export function ChatWindow({
     });
   }
 
-  function toggleMic() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      toast("المتصفح ده مش بيدعم المايك، جرّب Chrome", "error");
-      return;
+  // Encode an AudioBuffer to a 16kHz mono 16-bit WAV (a format Gemini STT accepts).
+  function encodeWav(buffer: AudioBuffer): Blob {
+    const targetRate = 16000;
+    const src = buffer.getChannelData(0);
+    const ratio = buffer.sampleRate / targetRate;
+    const outLen = Math.floor(src.length / ratio);
+    const pcm = new Int16Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+      const s = Math.max(-1, Math.min(1, src[Math.floor(i * ratio)] ?? 0));
+      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
+    const wav = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+    const wr = (o: number, s: string) => { for (let i = 0; i < s.length; i++) wav.setUint8(o + i, s.charCodeAt(i)); };
+    wr(0, "RIFF"); wav.setUint32(4, 36 + pcm.length * 2, true); wr(8, "WAVE"); wr(12, "fmt ");
+    wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 1, true);
+    wav.setUint32(24, targetRate, true); wav.setUint32(28, targetRate * 2, true);
+    wav.setUint16(32, 2, true); wav.setUint16(34, 16, true); wr(36, "data");
+    wav.setUint32(40, pcm.length * 2, true);
+    for (let i = 0; i < pcm.length; i++) wav.setInt16(44 + i * 2, pcm[i], true);
+    return new Blob([wav.buffer], { type: "audio/wav" });
+  }
+
+  async function transcribe(blob: Blob) {
+    setTranscribing(true);
+    try {
+      const buf = await blob.arrayBuffer();
+      const ctx = new AudioContext();
+      const decoded = await ctx.decodeAudioData(buf);
+      ctx.close();
+      const wav = encodeWav(decoded);
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(await wav.arrayBuffer())));
+      const res = await fetch("/api/stt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio: b64, mimeType: "audio/wav" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const text = (data.text ?? "").trim();
+      if (text) {
+        setInput((prev) => (prev ? prev + " " : "") + text);
+        taRef.current?.focus();
+      } else {
+        toast(t("ماسمعتش كلام واضح", "Didn't catch that"), "error");
+      }
+    } catch {
+      toast(t("مش قادرة أحوّل الصوت", "Couldn't transcribe"), "error");
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
+  async function toggleMic() {
     if (listening) {
-      recogRef.current?.stop();
+      mediaRecRef.current?.stop();
       return;
     }
-    const rec = new SR();
-    rec.lang = "ar-EG";
-    rec.interimResults = false;
-    rec.continuous = false;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onresult = (e: any) => {
-      const t = e.results[0][0].transcript as string;
-      setInput((prev) => (prev ? prev + " " : "") + t);
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    rec.start();
-    recogRef.current = rec;
-    setListening(true);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast(t("الجهاز ده مش بيدعم التسجيل", "Recording not supported here"), "error");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
+      audioChunksRef.current = [];
+      const rec = new MediaRecorder(stream);
+      rec.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        micStreamRef.current?.getTracks().forEach((tr) => tr.stop());
+        micStreamRef.current = null;
+        setListening(false);
+        const blob = new Blob(audioChunksRef.current, { type: rec.mimeType || "audio/webm" });
+        if (blob.size > 0) transcribe(blob);
+      };
+      mediaRecRef.current = rec;
+      rec.start();
+      setListening(true);
+    } catch {
+      toast(t("لازم تسمح بالمايك", "Mic permission needed"), "error");
+    }
   }
 
   useEffect(() => {
@@ -654,15 +710,20 @@ export function ChatWindow({
             </button>
             <button
               onClick={toggleMic}
-              aria-label="إدخال صوتي"
+              disabled={transcribing}
+              aria-label={listening ? t("وقّف التسجيل", "Stop recording") : t("سجّل صوت", "Record voice")}
               className={cn(
-                "shrink-0 size-11 grid place-items-center rounded-2xl transition-theme active:scale-95",
+                "shrink-0 size-11 grid place-items-center rounded-2xl transition-theme active:scale-95 disabled:opacity-60",
                 listening
                   ? "bg-danger text-white animate-pulse-glow"
                   : "bg-elevated text-muted hover:text-ink",
               )}
             >
-              <Mic className="size-5" />
+              {transcribing ? (
+                <span className="size-4 rounded-full border-2 border-muted/40 border-t-muted animate-spin" />
+              ) : (
+                <Mic className="size-5" />
+              )}
             </button>
             <textarea
               ref={taRef}
