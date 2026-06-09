@@ -34,6 +34,7 @@ export const users = pgTable("users", {
   timezone: text("timezone").notNull().default("Africa/Cairo"),
   locale: text("locale", { enum: ["ar", "en"] }).notNull().default("ar"),
   isLocked: boolean("is_locked").notNull().default(false), // panic-lock
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }), // null = needs onboarding
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

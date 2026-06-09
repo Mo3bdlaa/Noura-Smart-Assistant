@@ -66,6 +66,7 @@ function moodLabel(m: MoodSnapshot, locale: Locale): string {
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (!user.onboardedAt) redirect("/onboarding"); // new users set up their assistant first
   const ctx = await tenantForUser(user.id, user.role);
 
   const [assistant] = await db

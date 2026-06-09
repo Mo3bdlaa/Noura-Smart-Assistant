@@ -12,6 +12,7 @@ export type AuthedUser = {
   timezone: string;
   locale: "ar" | "en";
   isLocked: boolean;
+  onboardedAt: Date | null;
 };
 
 /** Resolve the current user from the sealed cookie + a valid (non-revoked) session row. */
@@ -28,6 +29,7 @@ export async function currentUser(): Promise<AuthedUser | null> {
       timezone: users.timezone,
       locale: users.locale,
       isLocked: users.isLocked,
+      onboardedAt: users.onboardedAt,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
