@@ -149,24 +149,56 @@ export function ChatWindow({
   const [listening, setListening] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recogRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setTtsOn(localStorage.getItem("noura_tts") === "1");
   }, []);
 
-  function speak(text: string) {
-    if (!ttsOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(text.replace(/[*_#`>~]/g, ""));
+  function browserSpeak(clean: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(clean);
     u.lang = "ar-EG";
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
+  }
+
+  async function speak(text: string) {
+    if (!ttsOn || typeof window === "undefined") return;
+    const clean = text.replace(/[*_#`>~]/g, "").trim();
+    if (!clean) return;
+    // Prefer her real voice (ElevenLabs); fall back to the browser voice if it's
+    // not configured or the request fails.
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: clean }),
+      });
+      if (res.ok && res.headers.get("content-type")?.includes("audio")) {
+        const url = URL.createObjectURL(await res.blob());
+        window.speechSynthesis?.cancel();
+        audioRef.current?.pause();
+        const a = new Audio(url);
+        audioRef.current = a;
+        a.onended = () => URL.revokeObjectURL(url);
+        await a.play();
+        return;
+      }
+    } catch {
+      /* fall through to browser TTS */
+    }
+    browserSpeak(clean);
   }
 
   function toggleTts() {
     setTtsOn((v) => {
       const nv = !v;
       localStorage.setItem("noura_tts", nv ? "1" : "0");
-      if (!nv) window.speechSynthesis?.cancel();
+      if (!nv) {
+        window.speechSynthesis?.cancel();
+        audioRef.current?.pause();
+      }
       return nv;
     });
   }

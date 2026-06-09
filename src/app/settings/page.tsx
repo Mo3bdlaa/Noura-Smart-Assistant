@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { assistants } from "@/lib/db/schema";
 import { getLlmConfig } from "@/lib/llm/config";
 import { getApiKeys } from "@/lib/llm/keys";
+import { getSetting } from "@/lib/settings";
 import { SettingsForm } from "@/components/SettingsForm";
 
 export default async function SettingsPage() {
@@ -21,6 +22,7 @@ export default async function SettingsPage() {
   const isAdmin = user.role === "admin";
   const llm = isAdmin ? await getLlmConfig() : null;
   const keyCount = isAdmin ? (await getApiKeys()).length : 0;
+  const voiceId = isAdmin ? ((await getSetting("elevenlabs_voice_id")) ?? "") : "";
 
   return (
     <SettingsForm
@@ -38,6 +40,7 @@ export default async function SettingsPage() {
               utilityModel: llm.utilityModel,
               embedModel: llm.embedModel,
               keyCount,
+              voiceId,
             }
           : null
       }

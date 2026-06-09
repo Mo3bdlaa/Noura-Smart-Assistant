@@ -39,6 +39,7 @@ export function SettingsForm({
     utilityModel: string;
     embedModel: string;
     keyCount: number;
+    voiceId?: string;
   } | null;
 }) {
   const router = useRouter();
@@ -67,6 +68,8 @@ export function SettingsForm({
     chatModel: provider?.chatModel ?? "",
     utilityModel: provider?.utilityModel ?? "",
     embedModel: provider?.embedModel ?? "",
+    elevenLabsKey: "",
+    voiceId: provider?.voiceId ?? "",
     chatBase: "",
     chatKeys: "",
     utilBase: "",
@@ -90,6 +93,8 @@ export function SettingsForm({
           chatModel: prov.chatModel,
           utilityModel: prov.utilityModel,
           embedModel: prov.embedModel,
+          elevenLabsKey: prov.elevenLabsKey,
+          voiceId: prov.voiceId,
           chat: { baseUrl: prov.chatBase, apiKeys: prov.chatKeys },
           utility: { baseUrl: prov.utilBase, apiKeys: prov.utilKeys },
           embed: { baseUrl: prov.embBase, apiKeys: prov.embKeys },
@@ -338,6 +343,29 @@ export function SettingsForm({
                   placeholder="gemini-embedding-001"
                   value={prov.embedModel}
                   onChange={(e) => setProv((p) => ({ ...p, embedModel: e.target.value }))}
+                />
+              </Field>
+              <Field
+                label={t("صوتها (ElevenLabs API key)", "Her voice (ElevenLabs API key)")}
+                hint={t(
+                  "عشان تتكلم بصوت حقيقي لما تشغّل السماعة. سيبه فاضي عشان متغيّرش.",
+                  "Enables her real spoken voice. Leave empty to keep.",
+                )}
+              >
+                <Input
+                  dir="ltr"
+                  type="password"
+                  placeholder="sk_..."
+                  value={prov.elevenLabsKey}
+                  onChange={(e) => setProv((p) => ({ ...p, elevenLabsKey: e.target.value }))}
+                />
+              </Field>
+              <Field label={t("Voice ID (اختياري)", "Voice ID (optional)")} hint={t("من حسابك في ElevenLabs", "from your ElevenLabs account")}>
+                <Input
+                  dir="ltr"
+                  placeholder="21m00Tcm4TlvDq8ikWAM"
+                  value={prov.voiceId}
+                  onChange={(e) => setProv((p) => ({ ...p, voiceId: e.target.value }))}
                 />
               </Field>
               {/* per-role overrides */}
