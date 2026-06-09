@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { Card, Chip } from "@/components/ui/Card";
+import { PhotoRepo } from "@/components/PhotoRepo";
 import { useToast } from "@/components/ui/Toast";
 import { useI18n } from "@/components/i18n";
 import type { ProfileReport } from "@/lib/insights/profile";
@@ -107,6 +108,9 @@ export function ProfileView({
           </div>
         )}
       </Card>
+
+      {/* her photo album */}
+      <PhotoRepo />
 
       {/* your own notes (editable) */}
       <Card className="p-5">

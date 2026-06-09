@@ -20,6 +20,7 @@ import {
   findUserMessageByQuote,
   getConversation,
   getReplySnapshot,
+  pickAssistantPhoto,
   recentHistory,
   saveMessage,
   setConversationTitle,
@@ -236,8 +237,9 @@ export async function POST(req: Request) {
       let buf = "";
       let decided = false;
       let resolvedReplyTo: Awaited<ReturnType<typeof findUserMessageByQuote>> = null;
+      let resolvedPhoto: string | null = null;
       const decide = async () => {
-        const { reaction, replyQuote, rest } = parseLeadTags(buf);
+        const { reaction, replyQuote, photo, photoTag, rest } = parseLeadTags(buf);
         if (replyQuote) {
           try {
             resolvedReplyTo = await findUserMessageByQuote(conversationId, replyQuote);
@@ -245,9 +247,17 @@ export async function POST(req: Request) {
             /* ignore quote resolution errors */
           }
         }
+        if (photo) {
+          try {
+            resolvedPhoto = await pickAssistantPhoto(ctx!.assistantId, photoTag);
+          } catch {
+            /* ignore photo resolution errors */
+          }
+        }
         const frame: Record<string, unknown> = {};
         if (reaction) frame.reaction = reaction;
         if (resolvedReplyTo) frame.replyTo = resolvedReplyTo;
+        if (resolvedPhoto) frame.photo = resolvedPhoto;
         if (Object.keys(frame).length) controller.enqueue(encoder.encode(controlFrame(frame)));
         if (rest) controller.enqueue(encoder.encode(rest));
         buf = "";
@@ -290,13 +300,16 @@ export async function POST(req: Request) {
             console.error("set reaction failed", e);
           }
         }
-        if (replyText) {
+        if (replyText || resolvedPhoto) {
+          const meta: Record<string, unknown> = {};
+          if (resolvedReplyTo) meta.replyTo = resolvedReplyTo;
+          if (resolvedPhoto) meta.images = [resolvedPhoto];
           await saveMessage({
             conversationId,
             userId: ctx!.userId,
             role: "assistant",
             content: replyText,
-            meta: resolvedReplyTo ? { replyTo: resolvedReplyTo } : undefined,
+            meta: Object.keys(meta).length ? meta : undefined,
           });
         }
         if (conv.type !== "incognito") {

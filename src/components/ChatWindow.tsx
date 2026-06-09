@@ -285,6 +285,7 @@ export function ChatWindow({
       let acc = ""; // visible reply text (control frame stripped)
       let raw = "";
       let controlDone = false;
+      let draftHasPhoto = false;
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -303,6 +304,10 @@ export function ChatWindow({
               if (ctrl.replyTo) {
                 setMessages((m) => m.map((x) => (x.id === draftId ? { ...x, replyTo: ctrl.replyTo } : x)));
               }
+              if (ctrl.photo) {
+                draftHasPhoto = true;
+                setMessages((m) => m.map((x) => (x.id === draftId ? { ...x, images: [ctrl.photo] } : x)));
+              }
             } catch {
               /* ignore malformed control frame */
             }
@@ -317,10 +322,10 @@ export function ChatWindow({
         }
         setMessages((m) => m.map((x) => (x.id === draftId ? { ...x, content: acc } : x)));
       }
-      // React-only turn (just an emoji, no words) → drop the empty assistant bubble.
-      if (acc.trim() === "") {
+      // React-only turn (just an emoji, no words, no photo) → drop the empty bubble.
+      if (acc.trim() === "" && !draftHasPhoto) {
         setMessages((m) => m.filter((x) => x.id !== draftId));
-      } else {
+      } else if (acc.trim()) {
         speak(acc);
       }
       router.refresh();

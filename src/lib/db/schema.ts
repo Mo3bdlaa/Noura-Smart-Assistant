@@ -303,6 +303,28 @@ export const diaries = pgTable(
 );
 export type Diary = typeof diaries.$inferSelect;
 
+// Her photo repo — images of the assistant the user uploads from the profile, that
+// she can "send" in chat when it fits. url is a downscaled data URL.
+export const assistantPhotos = pgTable(
+  "assistant_photos",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assistantId: uuid("assistant_id")
+      .notNull()
+      .references(() => assistants.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    tag: text("tag"), // optional scene/mood keyword for contextual picking
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byScope: index("assistant_photos_scope_idx").on(t.assistantId),
+  }),
+);
+export type AssistantPhoto = typeof assistantPhotos.$inferSelect;
+
 // Async work queue (memory extraction; seam for the future nightly consolidation job).
 export const jobs = pgTable(
   "jobs",

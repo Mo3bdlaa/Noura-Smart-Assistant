@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { conversations, messages, type ConversationType } from "@/lib/db/schema";
+import { assistantPhotos, conversations, messages, type ConversationType } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant";
 import type { ChatTurn } from "@/lib/llm/chat";
 
@@ -180,6 +180,32 @@ export async function getReplySnapshot(
     .where(and(eq(messages.id, id), eq(messages.userId, ctx.userId)))
     .limit(1);
   return row ? briefOf(row.role, row.content, row.id) : null;
+}
+
+/** Pick a photo from her repo for her to "send" — by tag if given, else random. */
+export async function pickAssistantPhoto(
+  assistantId: string,
+  tag?: string | null,
+): Promise<string | null> {
+  const t = (tag ?? "").replace(/[%_]/g, " ").trim().slice(0, 40);
+  if (t.length >= 2) {
+    const [m] = await db
+      .select({ url: assistantPhotos.url })
+      .from(assistantPhotos)
+      .where(
+        and(eq(assistantPhotos.assistantId, assistantId), sql`coalesce(${assistantPhotos.tag},'') ILIKE ${"%" + t + "%"}`),
+      )
+      .orderBy(sql`random()`)
+      .limit(1);
+    if (m) return m.url;
+  }
+  const [r] = await db
+    .select({ url: assistantPhotos.url })
+    .from(assistantPhotos)
+    .where(eq(assistantPhotos.assistantId, assistantId))
+    .orderBy(sql`random()`)
+    .limit(1);
+  return r?.url ?? null;
 }
 
 /** Resolve a short quote (from her <replyto:…> tag) to the latest matching user message. */
