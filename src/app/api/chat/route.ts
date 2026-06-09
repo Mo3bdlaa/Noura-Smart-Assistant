@@ -25,6 +25,7 @@ import {
   updateSideCardTitle,
 } from "@/lib/chat/store";
 import { parseReactLead, couldBeReactLead, controlFrame, REACT_LEAD_RE } from "@/lib/chat/react-tag";
+import { pickThrowback } from "@/lib/memory/throwback";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
@@ -120,6 +121,22 @@ export async function POST(req: Request) {
     readMood(ctx.assistantId),
     getProfile(ctx.assistantId).catch(() => null),
   ]);
+
+  // Now and then, once there's history, she spontaneously reminisces about an old
+  // memory ("افتكرت إنك...") unprompted — makes her feel like she truly remembers.
+  if (conv.type !== "incognito" && history.length >= 6 && initiatives.length < 2 && Math.random() < 0.15) {
+    try {
+      const tb = await pickThrowback({ userId: ctx.userId, assistantId: ctx.assistantId });
+      if (tb) {
+        initiatives.push(
+          "حاجة افتكرتيها فجأة من بدري وحابة تجيبي سيرتها بتلقائية وبطريقتك (زي «على فكرة، افتكرت إنك...» " +
+            `أو «فاكر لما...») — مش لازم تكون مرتبطة بالكلام الحالي: ${tb}`,
+        );
+      }
+    } catch (e) {
+      console.error("throwback failed", e);
+    }
+  }
 
   const system = assembleSystem({
     assistantName: assistant?.name ?? "نورا",
