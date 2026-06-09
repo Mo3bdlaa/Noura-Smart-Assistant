@@ -19,6 +19,7 @@ export default async function SettingsPage() {
       appearance: assistants.appearance,
       voiceId: assistants.voiceId,
       language: assistants.language,
+      archetype: assistants.archetype,
       persona: assistants.persona,
     })
     .from(assistants)
@@ -41,6 +42,7 @@ export default async function SettingsPage() {
         appearance: assistant?.appearance ?? "",
         voiceId: assistant?.voiceId ?? "",
         language: assistant?.language ?? "en",
+        archetype: assistant?.archetype ?? "companion",
         playfulness: dials.playfulness ?? 0.8,
         bluntness: dials.bluntness ?? 0.65,
         warmth: dials.warmth ?? 0.8,

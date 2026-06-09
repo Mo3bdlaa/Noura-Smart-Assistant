@@ -101,7 +101,7 @@ export async function POST(req: Request) {
   });
 
   const [assistant] = await db
-    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon, appearance: assistants.appearance, language: assistants.language })
+    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon, appearance: assistants.appearance, language: assistants.language, archetype: assistants.archetype })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -157,6 +157,7 @@ export async function POST(req: Request) {
 
   const system = assembleSystem({
     assistantName: assistant?.name ?? "نورا",
+    archetype: (assistant?.archetype as "companion" | "secretary") ?? undefined,
     language: (assistant?.language as LangCode) ?? undefined,
     dials: (assistant?.persona as Record<string, number>) ?? undefined,
     canon: (assistant?.canon as CanonEntry[]) ?? [],

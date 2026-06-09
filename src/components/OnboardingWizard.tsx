@@ -21,6 +21,7 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
   const [previewing, setPreviewing] = useState(false);
   const [form, setForm] = useState({
     assistantName: "",
+    archetype: "companion",
     appearance: "",
     language: "en",
     voiceId: DEFAULT_GEMINI_VOICE,
@@ -74,6 +75,7 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assistantName: form.assistantName.trim(),
+          archetype: form.archetype,
           appearance: form.appearance.trim(),
           language: form.language,
           voiceId: form.voiceId,
@@ -118,6 +120,16 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
                 onChange={(e) => setForm((f) => ({ ...f, assistantName: e.target.value }))}
                 placeholder={t("مثلاً: لمى، سيلڤا، ...", "e.g. Lina, Maya, ...")}
               />
+            </Field>
+            <Field label={t("نوعها", "Her role")} hint={t("هي تبقى إيه بالنسبالك؟", "what is she to you?")}>
+              <select
+                value={form.archetype}
+                onChange={(e) => setForm((f) => ({ ...f, archetype: e.target.value }))}
+                className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent"
+              >
+                <option value="secretary">{t("سكرتيرة لعوب 💼", "Playful secretary 💼")}</option>
+                <option value="companion">{t("رفيقة عاطفية 💗", "Emotional companion 💗")}</option>
+              </select>
             </Field>
           </Step>
         )}

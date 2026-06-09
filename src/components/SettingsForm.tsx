@@ -41,6 +41,7 @@ export function SettingsForm({
     appearance: string;
     voiceId: string;
     language: string;
+    archetype: string;
     playfulness: number;
     bluntness: number;
     warmth: number;
@@ -168,6 +169,7 @@ export function SettingsForm({
           appearance: profile.appearance,
           voiceId: profile.voiceId,
           language: profile.language,
+          archetype: profile.archetype,
           dials: {
             playfulness: profile.playfulness,
             bluntness: profile.bluntness,
@@ -307,6 +309,16 @@ export function SettingsForm({
                     {tz}
                   </option>
                 ))}
+              </select>
+            </Field>
+            <Field label={t("نوعها", "Her role")} hint={t("سكرتيرة لعوب بتنجّز، ولا رفيقة عاطفية", "playful helpful secretary, or an emotional companion")}>
+              <select
+                value={profile.archetype}
+                onChange={(e) => setProfile((p) => ({ ...p, archetype: e.target.value }))}
+                className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
+              >
+                <option value="secretary">{t("سكرتيرة لعوب 💼", "Playful secretary 💼")}</option>
+                <option value="companion">{t("رفيقة عاطفية 💗", "Emotional companion 💗")}</option>
               </select>
             </Field>
             <Field
