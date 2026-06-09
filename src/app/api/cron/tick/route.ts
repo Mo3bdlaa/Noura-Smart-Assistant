@@ -6,6 +6,7 @@ import { drainJobs } from "@/lib/jobs/worker";
 import { generateReminderInitiatives } from "@/lib/initiatives/generate";
 import { generateDreamInitiatives } from "@/lib/dreams/generate";
 import { generateNightlyReflection } from "@/lib/diary/generate";
+import { generateProactiveOutreach } from "@/lib/outreach/generate";
 import { runDueTasks } from "@/lib/tasks/run";
 
 /**
@@ -57,6 +58,12 @@ export async function GET(req: Request) {
       await generateNightlyReflection(userId, a.id);
     } catch {
       /* a failed diary shouldn't break the sweep */
+    }
+    // She reaches out first sometimes (morning hello / check-in / missed you).
+    try {
+      await generateProactiveOutreach(userId, a.id);
+    } catch {
+      /* a failed outreach shouldn't break the sweep */
     }
     swept++;
   }

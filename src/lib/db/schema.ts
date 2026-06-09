@@ -57,6 +57,8 @@ export const assistants = pgTable(
     appearance: text("appearance"),
     // last time the user actually said something — drives absence-awareness/"dreams".
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    // last time SHE reached out first (throttles proactive outreach).
+    lastProactiveAt: timestamp("last_proactive_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
