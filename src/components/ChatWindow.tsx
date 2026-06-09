@@ -386,13 +386,13 @@ export function ChatWindow({
         }
         // Safety net: the model may leak a stray <voice>/</voice> — strip it from the
         // shown text and treat it as a voice note even if it arrived late.
-        if (!draftIsVoice && /<\/?voice>/i.test(acc)) draftIsVoice = true;
-        const display = acc.replace(/<\/?voice>/gi, "");
+        if (!draftIsVoice && /<\s*\/?\s*voice\s*\/?\s*>/i.test(acc)) draftIsVoice = true;
+        const display = acc.replace(/<\s*\/?\s*voice\s*\/?\s*>/gi, "");
         setMessages((m) =>
           m.map((x) => (x.id === draftId ? { ...x, content: display, voice: x.voice || draftIsVoice } : x)),
         );
       }
-      const finalText = acc.replace(/<\/?voice>/gi, "").trim();
+      const finalText = acc.replace(/<\s*\/?\s*voice\s*\/?\s*>/gi, "").trim();
       // React-only turn (just an emoji, no words, no photo) → drop the empty bubble.
       if (finalText === "" && !draftHasPhoto) {
         setMessages((m) => m.filter((x) => x.id !== draftId));

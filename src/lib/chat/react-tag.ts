@@ -8,7 +8,10 @@
 export const REACT_LEAD_RE = /^\s*<react:\s*([^\s>]{1,16})\s*>\s*/u;
 export const REPLY_LEAD_RE = /^\s*<replyto:\s*([^>]{1,80}?)\s*>\s*/u;
 export const PHOTO_LEAD_RE = /^\s*<photo(?::\s*([^>]{0,40}?))?\s*>\s*/u;
-export const VOICE_LEAD_RE = /^\s*<voice>\s*/u;
+// matches <voice>, <voice/>, </voice>, < voice > at the start
+export const VOICE_LEAD_RE = /^\s*<\s*\/?\s*voice\s*\/?\s*>\s*/u;
+/** Any stray voice tag anywhere (the model sometimes emits <voice/> or </voice>). */
+export const VOICE_ANY_RE = /<\s*\/?\s*voice\s*\/?\s*>/gi;
 
 /** NUL-prefixed control frame the chat stream sends before the reply text. */
 export const CONTROL_PREFIX = String.fromCharCode(0);
