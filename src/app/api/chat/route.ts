@@ -257,6 +257,27 @@ export async function POST(req: Request) {
       let resolvedReplyTo: Awaited<ReturnType<typeof findUserMessageByQuote>> = null;
       let resolvedPhoto: string | null = null;
       let isVoice = false;
+      // Outgoing buffer for the visible reply: strips stray voice tags (<voice/>,
+      // </voice>, …) before they ever reach the client, holding back a tiny tail in
+      // case a tag is split across chunks.
+      let outBuf = "";
+      const VOICE_RE = /<\s*\/?\s*voice\s*\/?\s*>/gi;
+      const flushSafe = () => {
+        if (VOICE_RE.test(outBuf)) {
+          isVoice = true;
+          outBuf = outBuf.replace(VOICE_RE, "");
+        }
+        // hold from a trailing unclosed "<" (could be a partial tag)
+        const lt = outBuf.lastIndexOf("<");
+        let emit = outBuf;
+        if (lt !== -1 && !outBuf.slice(lt).includes(">")) {
+          emit = outBuf.slice(0, lt);
+          outBuf = outBuf.slice(lt);
+        } else {
+          outBuf = "";
+        }
+        if (emit) controller.enqueue(encoder.encode(emit));
+      };
       const decide = async () => {
         const { reaction, replyQuote, photo, photoTag, voice, rest } = parseLeadTags(buf);
         if (replyQuote) {
@@ -284,7 +305,10 @@ export async function POST(req: Request) {
         if (resolvedPhoto) frame.photo = resolvedPhoto;
         if (isVoice) frame.voice = true;
         if (Object.keys(frame).length) controller.enqueue(encoder.encode(controlFrame(frame)));
-        if (rest) controller.enqueue(encoder.encode(rest));
+        if (rest) {
+          outBuf += rest;
+          flushSafe();
+        }
         buf = "";
         decided = true;
       };
@@ -293,7 +317,8 @@ export async function POST(req: Request) {
         for await (const delta of streamChat({ system, history, images })) {
           full += delta;
           if (decided) {
-            controller.enqueue(encoder.encode(delta));
+            outBuf += delta;
+            flushSafe();
             continue;
           }
           buf += delta;
@@ -313,6 +338,13 @@ export async function POST(req: Request) {
         }
       } finally {
         if (!decided) await decide(); // stream ended while still buffering
+        // flush any held tail (strip a leftover/partial voice tag)
+        if (outBuf) {
+          if (VOICE_RE.test(outBuf)) isVoice = true;
+          const tail = outBuf.replace(VOICE_RE, "");
+          if (tail) controller.enqueue(encoder.encode(tail));
+          outBuf = "";
+        }
         const { reaction, rest } = parseLeadTags(full);
         // The model sometimes emits a stray voice tag (<voice/>, </voice>) — treat any
         // of them as voice and strip it so it never leaks into the text.
