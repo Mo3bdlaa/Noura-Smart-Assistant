@@ -317,8 +317,9 @@ export function SettingsForm({
                 onChange={(e) => setProfile((p) => ({ ...p, archetype: e.target.value }))}
                 className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
               >
-                <option value="secretary">{t("سكرتيرة لعوب 💼", "Playful secretary 💼")}</option>
-                <option value="companion">{t("رفيقة عاطفية 💗", "Emotional companion 💗")}</option>
+                <option value="progressive">{t("سكرتيرة بتكبر معاك 🌱", "Secretary that grows with you 🌱")}</option>
+                <option value="secretary">{t("سكرتيرة وتفضل كده 💼", "Always a secretary 💼")}</option>
+                <option value="companion">{t("رفيقة عاطفية من الأول 💗", "Companion from the start 💗")}</option>
               </select>
             </Field>
             <Field

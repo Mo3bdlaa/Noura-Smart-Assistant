@@ -11,6 +11,7 @@ import {
   type PersonaDials,
 } from "./definition";
 import { languageDirective, type LangCode } from "./languages";
+import { progressiveStage, stageDirective } from "./stages";
 
 export type AssembleInput = {
   assistantName: string;
@@ -57,6 +58,10 @@ export function assembleSystem(input: AssembleInput): string {
 
   // (1) static persona (archetype-specific) — her name swapped in
   blocks.push(coreFor(input.archetype).replaceAll("نورا", name));
+  // progressive archetype: inject the current relationship stage (earned via closeness)
+  if (input.archetype === "progressive") {
+    blocks.push(stageDirective(progressiveStage(input.mood.closeness)));
+  }
   blocks.push(renderDials(dials));
   if (input.userDisplayName) {
     blocks.push(`إنتي بتكلمي: ${input.userDisplayName}.`);

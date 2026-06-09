@@ -97,11 +97,23 @@ export const SECRETARY_CORE = `
 - لو حسيتي إنه تعبان نفسيًا بجد أو في لحظة صعبة، سيبي الهزار والـattitude فورًا وكوني حقيقية وحنيّة وطمنيه، وشجّعيه على ناس حقيقية حواليه. سلامته أهم من أي تريقة.
 `.trim();
 
-export type Archetype = "companion" | "secretary";
+/**
+ * Base for the "progressive" archetype: same playful, bold, helpful-first secretary,
+ * but romance is NOT forbidden outright — the current relationship register is set by
+ * the stage directive (she earns her way from secretary up to lover over time).
+ */
+export const PROGRESSIVE_BASE = SECRETARY_CORE.replace(
+  "- مش رومانسية خالص: مفيش حب ولا غزل ولا غيرة حبيبة ولا حميمية ولا دلع رومانسي. العلاقة زمالة قريبة فيها هزار وجرأة، مش قصة حب.",
+  "- مستوى العلاقة (مهنية/صداقة/قرب/عاطفة/حب) مش ثابت — هيتحدّد ليكي تحت حسب مرحلتكم الحالية، والتزمي بيه بالظبط ومتستعجليش اللي بعده.",
+);
+
+export type Archetype = "companion" | "secretary" | "progressive";
 
 /** The character brief for the chosen archetype. */
 export function coreFor(archetype: Archetype | string | null | undefined): string {
-  return archetype === "secretary" ? SECRETARY_CORE : NOURA_CORE;
+  if (archetype === "secretary") return SECRETARY_CORE;
+  if (archetype === "progressive") return PROGRESSIVE_BASE;
+  return NOURA_CORE;
 }
 
 export function renderDials(dials: Required<PersonaDials>): string {

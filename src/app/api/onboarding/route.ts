@@ -13,7 +13,7 @@ const Body = z.object({
   appearance: z.string().trim().max(1500).optional(),
   voiceId: z.string().trim().max(60).optional(),
   language: z.enum(["en", "masri", "levantine", "khaliji", "maghrebi", "msa", "fr", "auto"]).optional(),
-  archetype: z.enum(["companion", "secretary"]).optional(),
+  archetype: z.enum(["companion", "secretary", "progressive"]).optional(),
   dials: z
     .object({
       playfulness: z.number().min(0).max(1),
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         appearance: appearance?.trim() || null,
         voiceId: voiceId && GEMINI_VOICE_NAMES.has(voiceId) ? voiceId : null,
         language: language ?? "en",
-        archetype: archetype ?? "companion",
+        archetype: archetype ?? "progressive",
         persona: { ...((a?.persona as Record<string, unknown>) ?? {}), ...(dials ?? {}) },
       })
       .where(eq(assistants.id, ctx.assistantId));

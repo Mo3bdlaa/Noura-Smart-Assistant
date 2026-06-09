@@ -60,8 +60,8 @@ export const assistants = pgTable(
     voiceId: text("voice_id"),
     // her speaking language/dialect (en | masri | levantine | … | auto). Default English.
     language: text("language").notNull().default("en"),
-    // persona archetype: companion (default) | secretary (playful, helpful-first).
-    archetype: text("archetype").notNull().default("companion"),
+    // persona archetype: progressive (default — secretary→…→lover) | secretary | companion.
+    archetype: text("archetype").notNull().default("progressive"),
     // last time the user actually said something — drives absence-awareness/"dreams".
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     // last time SHE reached out first (throttles proactive outreach).

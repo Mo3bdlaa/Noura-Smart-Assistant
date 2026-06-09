@@ -15,7 +15,7 @@ const Body = z.object({
   appearance: z.string().trim().max(1500).optional(),
   voiceId: z.string().trim().max(100).optional(),
   language: z.enum(["en", "masri", "levantine", "khaliji", "maghrebi", "msa", "fr", "auto"]).optional(),
-  archetype: z.enum(["companion", "secretary"]).optional(),
+  archetype: z.enum(["companion", "secretary", "progressive"]).optional(),
   avatarUrl: z.string().max(2_800_000).optional(), // data URL, downscaled client-side
   dials: z
     .object({

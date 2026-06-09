@@ -157,7 +157,7 @@ export async function POST(req: Request) {
 
   const system = assembleSystem({
     assistantName: assistant?.name ?? "نورا",
-    archetype: (assistant?.archetype as "companion" | "secretary") ?? undefined,
+    archetype: (assistant?.archetype as "companion" | "secretary" | "progressive") ?? undefined,
     language: (assistant?.language as LangCode) ?? undefined,
     dials: (assistant?.persona as Record<string, number>) ?? undefined,
     canon: (assistant?.canon as CanonEntry[]) ?? [],

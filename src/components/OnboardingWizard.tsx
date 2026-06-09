@@ -21,7 +21,7 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
   const [previewing, setPreviewing] = useState(false);
   const [form, setForm] = useState({
     assistantName: "",
-    archetype: "companion",
+    archetype: "progressive",
     appearance: "",
     language: "en",
     voiceId: DEFAULT_GEMINI_VOICE,
@@ -121,14 +121,15 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
                 placeholder={t("مثلاً: لمى، سيلڤا، ...", "e.g. Lina, Maya, ...")}
               />
             </Field>
-            <Field label={t("نوعها", "Her role")} hint={t("هي تبقى إيه بالنسبالك؟", "what is she to you?")}>
+            <Field label={t("نوعها", "Her role")} hint={t("هتبدأ سكرتيرتك، وتكبر العلاقة حسب تعاملك", "starts as your secretary, grows with how you treat her")}>
               <select
                 value={form.archetype}
                 onChange={(e) => setForm((f) => ({ ...f, archetype: e.target.value }))}
                 className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent"
               >
-                <option value="secretary">{t("سكرتيرة لعوب 💼", "Playful secretary 💼")}</option>
-                <option value="companion">{t("رفيقة عاطفية 💗", "Emotional companion 💗")}</option>
+                <option value="progressive">{t("سكرتيرة بتكبر معاك 🌱", "Secretary that grows with you 🌱")}</option>
+                <option value="secretary">{t("سكرتيرة وتفضل كده 💼", "Always a secretary 💼")}</option>
+                <option value="companion">{t("رفيقة عاطفية من الأول 💗", "Companion from the start 💗")}</option>
               </select>
             </Field>
           </Step>
