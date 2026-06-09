@@ -46,7 +46,12 @@ export default async function ConversationPage({
         .filter((m) => m.role !== "system" || (m.meta as { sideCard?: string } | null)?.sideCard)
         .map((m) => {
           const meta =
-            (m.meta as { reaction?: string | null; images?: string[]; sideCard?: string } | null) ?? null;
+            (m.meta as {
+              reaction?: string | null;
+              images?: string[];
+              sideCard?: string;
+              replyTo?: { id: string; role: "user" | "assistant"; preview: string };
+            } | null) ?? null;
           return {
             id: m.id,
             role: m.role === "user" ? ("user" as const) : ("assistant" as const),
@@ -54,6 +59,7 @@ export default async function ConversationPage({
             reaction: meta?.reaction ?? null,
             images: meta?.images,
             sideCardId: meta?.sideCard,
+            replyTo: meta?.replyTo ?? null,
           };
         })}
     />

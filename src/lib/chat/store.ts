@@ -160,3 +160,46 @@ export async function saveMessage(opts: {
     .returning({ id: messages.id });
   return row!.id;
 }
+
+export type ReplySnapshot = { id: string; role: "user" | "assistant"; preview: string };
+
+const briefOf = (role: string, content: string, id: string): ReplySnapshot => ({
+  id,
+  role: role === "user" ? "user" : "assistant",
+  preview: content.slice(0, 160),
+});
+
+/** Snapshot of a message the user chose to reply to (must be theirs). */
+export async function getReplySnapshot(
+  ctx: TenantContext,
+  id: string,
+): Promise<ReplySnapshot | null> {
+  const [row] = await db
+    .select({ id: messages.id, role: messages.role, content: messages.content })
+    .from(messages)
+    .where(and(eq(messages.id, id), eq(messages.userId, ctx.userId)))
+    .limit(1);
+  return row ? briefOf(row.role, row.content, row.id) : null;
+}
+
+/** Resolve a short quote (from her <replyto:…> tag) to the latest matching user message. */
+export async function findUserMessageByQuote(
+  conversationId: string,
+  quote: string,
+): Promise<ReplySnapshot | null> {
+  const q = quote.replace(/[%_]/g, " ").trim().slice(0, 60);
+  if (q.length < 3) return null;
+  const [row] = await db
+    .select({ id: messages.id, role: messages.role, content: messages.content })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.role, "user"),
+        sql`${messages.content} ILIKE ${"%" + q + "%"}`,
+      ),
+    )
+    .orderBy(desc(messages.createdAt))
+    .limit(1);
+  return row ? briefOf(row.role, row.content, row.id) : null;
+}

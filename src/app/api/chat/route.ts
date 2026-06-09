@@ -17,14 +17,16 @@ import {
 } from "@/lib/initiatives/generate";
 import { surfaceInitiatives } from "@/lib/initiatives/surface";
 import {
+  findUserMessageByQuote,
   getConversation,
+  getReplySnapshot,
   recentHistory,
   saveMessage,
   setConversationTitle,
   setMessageReaction,
   updateSideCardTitle,
 } from "@/lib/chat/store";
-import { parseReactLead, couldBeReactLead, controlFrame, REACT_LEAD_RE } from "@/lib/chat/react-tag";
+import { parseLeadTags, couldBeLeadTag, controlFrame } from "@/lib/chat/react-tag";
 import { pickThrowback } from "@/lib/memory/throwback";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
@@ -46,6 +48,8 @@ const Body = z
     message: z.string().trim().max(4000).default(""),
     // base64 data URLs (client downscales before sending). Multimodal turn.
     images: z.array(z.string().startsWith("data:image/")).max(4).optional(),
+    // id of a message this turn is quote-replying to (optional).
+    replyToId: z.string().uuid().optional(),
   })
   .refine((b) => b.message.length > 0 || (b.images?.length ?? 0) > 0, {
     message: "اكتب رسالة أو ابعت صورة",
@@ -66,11 +70,14 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "رسالة غير صالحة" }, { status: 400 });
   }
-  const { conversationId, message, images } = parsed.data;
+  const { conversationId, message, images, replyToId } = parsed.data;
 
   const conv = await getConversation(ctx, conversationId);
   if (!conv) return NextResponse.json({ error: "المحادثة مش موجودة" }, { status: 404 });
   const policy = conversationPolicy(conv.type);
+
+  // If the user is quoting an earlier message, snapshot it onto their message.
+  const userReplyTo = replyToId ? await getReplySnapshot(ctx, replyToId) : null;
 
   // Transcript stores text only; images are sent to the model for this turn but
   // not persisted (keeps the DB light). Mark image-only turns so they read well.
@@ -83,7 +90,10 @@ export async function POST(req: Request) {
     userId: ctx.userId,
     role: "user",
     content: transcriptText,
-    meta: images?.length ? { images } : undefined,
+    meta:
+      images?.length || userReplyTo
+        ? { ...(images?.length ? { images } : {}), ...(userReplyTo ? { replyTo: userReplyTo } : {}) }
+        : undefined,
   });
 
   const [assistant] = await db
@@ -220,19 +230,26 @@ export async function POST(req: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let full = "";
-      // She may open with an optional "<react:emoji>" tag. We buffer the very start
-      // until we can tell whether it's a tag; if so we emit a control frame (so the
-      // client puts the reaction on the user's message) and strip it from the reply.
+      // She may open with optional "<react:…>" / "<replyto:…>" tags. Buffer the very
+      // start until we can tell, then emit one control frame (reaction on the user's
+      // message + a quoted reply target) and strip the tags from the visible reply.
       let buf = "";
       let decided = false;
-      const flushDecision = () => {
-        const { reaction, rest } = parseReactLead(buf);
-        if (reaction) {
-          controller.enqueue(encoder.encode(controlFrame({ reaction })));
-          if (rest) controller.enqueue(encoder.encode(rest));
-        } else {
-          controller.enqueue(encoder.encode(buf));
+      let resolvedReplyTo: Awaited<ReturnType<typeof findUserMessageByQuote>> = null;
+      const decide = async () => {
+        const { reaction, replyQuote, rest } = parseLeadTags(buf);
+        if (replyQuote) {
+          try {
+            resolvedReplyTo = await findUserMessageByQuote(conversationId, replyQuote);
+          } catch {
+            /* ignore quote resolution errors */
+          }
         }
+        const frame: Record<string, unknown> = {};
+        if (reaction) frame.reaction = reaction;
+        if (resolvedReplyTo) frame.replyTo = resolvedReplyTo;
+        if (Object.keys(frame).length) controller.enqueue(encoder.encode(controlFrame(frame)));
+        if (rest) controller.enqueue(encoder.encode(rest));
         buf = "";
         decided = true;
       };
@@ -245,8 +262,9 @@ export async function POST(req: Request) {
             continue;
           }
           buf += delta;
-          if (REACT_LEAD_RE.test(buf) || !couldBeReactLead(buf) || buf.length > 64) {
-            flushDecision();
+          const { rest } = parseLeadTags(buf);
+          if ((rest.length > 0 && !couldBeLeadTag(rest)) || buf.length > 96) {
+            await decide();
           }
         }
       } catch (e) {
@@ -259,11 +277,12 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(msg));
         }
       } finally {
-        if (!decided) flushDecision(); // stream ended while still buffering
-        const { reaction, rest } = parseReactLead(full);
+        if (!decided) await decide(); // stream ended while still buffering
+        const { reaction, rest } = parseLeadTags(full);
         const replyText = rest.trim();
 
-        // A reaction goes onto the user's message; the reply (if any) is saved separately.
+        // A reaction goes onto the user's message; the reply (if any) is saved separately,
+        // carrying the quoted-reply snapshot so it renders on reload too.
         if (reaction) {
           try {
             await setMessageReaction(ctx!, userMessageId, reaction);
@@ -277,6 +296,7 @@ export async function POST(req: Request) {
             userId: ctx!.userId,
             role: "assistant",
             content: replyText,
+            meta: resolvedReplyTo ? { replyTo: resolvedReplyTo } : undefined,
           });
         }
         if (conv.type !== "incognito") {

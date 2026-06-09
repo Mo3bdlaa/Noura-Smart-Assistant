@@ -10,7 +10,7 @@ import { retrieveMemories } from "@/lib/memory/retrieve";
 import { readMood } from "@/lib/mood/state";
 import { timeContext } from "@/lib/time/awareness";
 import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
-import { parseReactLead, couldBeReactLead, REACT_LEAD_RE } from "@/lib/chat/react-tag";
+import { parseLeadTags, couldBeLeadTag } from "@/lib/chat/react-tag";
 import { getLocale } from "@/lib/i18n";
 
 export const maxDuration = 60;
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       let buf = "";
       let decided = false;
       const flush = () => {
-        controller.enqueue(encoder.encode(parseReactLead(buf).rest));
+        controller.enqueue(encoder.encode(parseLeadTags(buf).rest));
         buf = "";
         decided = true;
       };
@@ -107,13 +107,14 @@ export async function POST(req: Request) {
             continue;
           }
           buf += delta;
-          if (REACT_LEAD_RE.test(buf) || !couldBeReactLead(buf) || buf.length > 64) flush();
+          const { rest } = parseLeadTags(buf);
+          if ((rest.length > 0 && !couldBeLeadTag(rest)) || buf.length > 96) flush();
         }
       } catch (e) {
         console.error("regenerate stream error", e);
       } finally {
         if (!decided) flush();
-        const replyText = parseReactLead(full).rest.trim();
+        const replyText = parseLeadTags(full).rest.trim();
         if (replyText) {
           if (lastAssistant) {
             await db.delete(messages).where(eq(messages.id, lastAssistant.id));
