@@ -62,6 +62,8 @@ export const assistants = pgTable(
     language: text("language").notNull().default("en"),
     // persona archetype: progressive (default — secretary→…→lover) | secretary | companion.
     archetype: text("archetype").notNull().default("progressive"),
+    // assistant gender: female (default) | male.
+    gender: text("gender").notNull().default("female"),
     // last time the user actually said something — drives absence-awareness/"dreams".
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     // last time SHE reached out first (throttles proactive outreach).

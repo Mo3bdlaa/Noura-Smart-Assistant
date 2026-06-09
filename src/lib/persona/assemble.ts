@@ -8,6 +8,7 @@ import {
   coreFor,
   renderDials,
   type Archetype,
+  type Gender,
   type PersonaDials,
 } from "./definition";
 import { languageDirective, type LangCode } from "./languages";
@@ -17,6 +18,8 @@ export type AssembleInput = {
   assistantName: string;
   /** Persona archetype — companion (default) or playful secretary. */
   archetype?: Archetype;
+  /** Her/his gender (default female). */
+  gender?: Gender;
   /** Her speaking language/dialect (defaults to English). */
   language?: LangCode;
   dials?: PersonaDials;
@@ -56,11 +59,15 @@ export function assembleSystem(input: AssembleInput): string {
 
   const blocks: string[] = [];
 
-  // (1) static persona (archetype-specific) — her name swapped in
-  blocks.push(coreFor(input.archetype).replaceAll("نورا", name));
+  // (1) static persona (archetype + gender specific) — her name swapped in
+  blocks.push(coreFor(input.archetype, input.gender).replaceAll("نورا", name));
   // progressive archetype: inject the current relationship stage (earned via closeness)
   if (input.archetype === "progressive") {
-    blocks.push(stageDirective(progressiveStage(input.mood.closeness)));
+    blocks.push(stageDirective(progressiveStage(input.mood.closeness), input.gender));
+  }
+  // gender reminder (the formatting instructions below are written feminine)
+  if (input.gender === "male") {
+    blocks.push("تذكير مهم: إنت ذكر — اتكلم عن نفسك بصيغة المذكر دايمًا في كل ردودك.");
   }
   blocks.push(renderDials(dials));
   if (input.userDisplayName) {

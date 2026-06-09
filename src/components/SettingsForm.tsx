@@ -42,6 +42,7 @@ export function SettingsForm({
     voiceId: string;
     language: string;
     archetype: string;
+    gender: string;
     playfulness: number;
     bluntness: number;
     warmth: number;
@@ -170,6 +171,7 @@ export function SettingsForm({
           voiceId: profile.voiceId,
           language: profile.language,
           archetype: profile.archetype,
+          gender: profile.gender,
           dials: {
             playfulness: profile.playfulness,
             bluntness: profile.bluntness,
@@ -309,6 +311,16 @@ export function SettingsForm({
                     {tz}
                   </option>
                 ))}
+              </select>
+            </Field>
+            <Field label={t("النوع", "Gender")} hint={t("بنت ولا ولد", "female or male")}>
+              <select
+                value={profile.gender}
+                onChange={(e) => setProfile((p) => ({ ...p, gender: e.target.value }))}
+                className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
+              >
+                <option value="female">{t("بنت 👩", "Female 👩")}</option>
+                <option value="male">{t("ولد 👨", "Male 👨")}</option>
               </select>
             </Field>
             <Field label={t("نوعها", "Her role")} hint={t("سكرتيرة لعوب بتنجّز، ولا رفيقة عاطفية", "playful helpful secretary, or an emotional companion")}>
