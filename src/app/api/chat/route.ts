@@ -8,6 +8,7 @@ import { conversationPolicy } from "@/lib/db/tenant";
 import { AuthError, requireTenant } from "@/lib/auth/guard";
 import { streamChat } from "@/lib/llm/chat";
 import { assembleSystem } from "@/lib/persona/assemble";
+import type { LangCode } from "@/lib/persona/languages";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 import { readMood } from "@/lib/mood/state";
 import { timeContext } from "@/lib/time/awareness";
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
   });
 
   const [assistant] = await db
-    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon, appearance: assistants.appearance })
+    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon, appearance: assistants.appearance, language: assistants.language })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -156,6 +157,7 @@ export async function POST(req: Request) {
 
   const system = assembleSystem({
     assistantName: assistant?.name ?? "نورا",
+    language: (assistant?.language as LangCode) ?? undefined,
     dials: (assistant?.persona as Record<string, number>) ?? undefined,
     canon: (assistant?.canon as CanonEntry[]) ?? [],
     mood,

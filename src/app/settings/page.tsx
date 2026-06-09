@@ -18,6 +18,7 @@ export default async function SettingsPage() {
       name: assistants.name,
       appearance: assistants.appearance,
       voiceId: assistants.voiceId,
+      language: assistants.language,
       persona: assistants.persona,
     })
     .from(assistants)
@@ -39,6 +40,7 @@ export default async function SettingsPage() {
         assistantName: assistant?.name ?? "نورا",
         appearance: assistant?.appearance ?? "",
         voiceId: assistant?.voiceId ?? "",
+        language: assistant?.language ?? "en",
         playfulness: dials.playfulness ?? 0.8,
         bluntness: dials.bluntness ?? 0.65,
         warmth: dials.warmth ?? 0.8,

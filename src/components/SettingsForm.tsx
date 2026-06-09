@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { ApiKeyManager } from "@/components/ApiKeyManager";
 import { GEMINI_VOICE_OPTIONS, DEFAULT_GEMINI_VOICE } from "@/lib/voice/gemini-voices";
+import { LANGUAGE_OPTIONS } from "@/lib/persona/languages";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
@@ -39,6 +40,7 @@ export function SettingsForm({
     assistantName: string;
     appearance: string;
     voiceId: string;
+    language: string;
     playfulness: number;
     bluntness: number;
     warmth: number;
@@ -165,6 +167,7 @@ export function SettingsForm({
           assistantName: profile.assistantName,
           appearance: profile.appearance,
           voiceId: profile.voiceId,
+          language: profile.language,
           dials: {
             playfulness: profile.playfulness,
             bluntness: profile.bluntness,
@@ -316,6 +319,19 @@ export function SettingsForm({
                 value={profile.appearance}
                 onChange={(e) => setProfile((p) => ({ ...p, appearance: e.target.value }))}
               />
+            </Field>
+            <Field label={t("لغتها", "Her language")} hint={t("اللغة/اللهجة اللي بتتكلم بيها", "the language/dialect she speaks")}>
+              <select
+                value={profile.language}
+                onChange={(e) => setProfile((p) => ({ ...p, language: e.target.value }))}
+                className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
+              >
+                {LANGUAGE_OPTIONS.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {t(l.ar, l.en)}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label={t("صوتها", "Her voice")} hint={t("اختار وادوس اسمع لتجربة الصوت", "pick one and tap listen to hear it")}>
               <div className="flex items-center gap-2">

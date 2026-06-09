@@ -12,6 +12,7 @@ const Body = z.object({
   assistantName: z.string().trim().min(2).max(40),
   appearance: z.string().trim().max(1500).optional(),
   voiceId: z.string().trim().max(60).optional(),
+  language: z.enum(["en", "masri", "levantine", "khaliji", "maghrebi", "msa", "fr", "auto"]).optional(),
   dials: z
     .object({
       playfulness: z.number().min(0).max(1),
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "بيانات غير صحيحة" }, { status: 400 });
-  const { assistantName, appearance, voiceId, dials } = parsed.data;
+  const { assistantName, appearance, voiceId, language, dials } = parsed.data;
 
   const nameError = validateAssistantName(assistantName, user.role);
   if (nameError) return NextResponse.json({ error: nameError }, { status: 400 });
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
         name: assistantName.trim(),
         appearance: appearance?.trim() || null,
         voiceId: voiceId && GEMINI_VOICE_NAMES.has(voiceId) ? voiceId : null,
+        language: language ?? "en",
         persona: { ...((a?.persona as Record<string, unknown>) ?? {}), ...(dials ?? {}) },
       })
       .where(eq(assistants.id, ctx.assistantId));

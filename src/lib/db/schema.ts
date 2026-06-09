@@ -58,6 +58,8 @@ export const assistants = pgTable(
     appearance: text("appearance"),
     // per-assistant ElevenLabs voice (falls back to the global voice when unset).
     voiceId: text("voice_id"),
+    // her speaking language/dialect (en | masri | levantine | … | auto). Default English.
+    language: text("language").notNull().default("en"),
     // last time the user actually said something — drives absence-awareness/"dreams".
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     // last time SHE reached out first (throttles proactive outreach).

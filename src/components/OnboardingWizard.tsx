@@ -9,6 +9,7 @@ import { Input, Field, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { useI18n } from "@/components/i18n";
 import { GEMINI_VOICE_OPTIONS, DEFAULT_GEMINI_VOICE } from "@/lib/voice/gemini-voices";
+import { LANGUAGE_OPTIONS } from "@/lib/persona/languages";
 
 /** First-time setup for a new user's own assistant: name, look, voice, personality. */
 export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
@@ -21,6 +22,7 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
   const [form, setForm] = useState({
     assistantName: "",
     appearance: "",
+    language: "en",
     voiceId: DEFAULT_GEMINI_VOICE,
     playfulness: 0.8,
     bluntness: 0.65,
@@ -73,6 +75,7 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
         body: JSON.stringify({
           assistantName: form.assistantName.trim(),
           appearance: form.appearance.trim(),
+          language: form.language,
           voiceId: form.voiceId,
           dials: { playfulness: form.playfulness, bluntness: form.bluntness, warmth: form.warmth },
         }),
@@ -134,7 +137,18 @@ export function OnboardingWizard({ isAdmin }: { isAdmin: boolean }) {
         )}
 
         {step === 2 && (
-          <Step icon={<Volume2 className="size-5" />} title={t("صوتها", "Her voice")}>
+          <Step icon={<Volume2 className="size-5" />} title={t("لغتها وصوتها", "Her language & voice")}>
+            <select
+              value={form.language}
+              onChange={(e) => setForm((f) => ({ ...f, language: e.target.value }))}
+              className="w-full h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent mb-1"
+            >
+              {LANGUAGE_OPTIONS.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {t(l.ar, l.en)}
+                </option>
+              ))}
+            </select>
             <div className="flex items-center gap-2">
               <select
                 value={form.voiceId}

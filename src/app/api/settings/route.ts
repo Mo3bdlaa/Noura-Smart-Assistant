@@ -14,6 +14,7 @@ const Body = z.object({
   locale: z.enum(["ar", "en"]).optional(),
   appearance: z.string().trim().max(1500).optional(),
   voiceId: z.string().trim().max(100).optional(),
+  language: z.enum(["en", "masri", "levantine", "khaliji", "maghrebi", "msa", "fr", "auto"]).optional(),
   avatarUrl: z.string().max(2_800_000).optional(), // data URL, downscaled client-side
   dials: z
     .object({
@@ -42,7 +43,7 @@ export async function PATCH(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "بيانات غير صحيحة" }, { status: 400 });
   }
-  const { displayName, timezone, assistantName, locale, appearance, voiceId, avatarUrl, dials } =
+  const { displayName, timezone, assistantName, locale, appearance, voiceId, language, avatarUrl, dials } =
     parsed.data;
 
   if (timezone && !isValidTimezone(timezone)) {
@@ -53,11 +54,13 @@ export async function PATCH(req: Request) {
   if (
     appearance !== undefined ||
     voiceId !== undefined ||
+    language !== undefined ||
     avatarUrl !== undefined ||
     dials !== undefined
   ) {
     const ctx = await tenantForUser(user.id, user.role);
     const aUpdate: Partial<typeof assistants.$inferInsert> = {};
+    if (language !== undefined) aUpdate.language = language;
     if (appearance !== undefined) aUpdate.appearance = appearance || null;
     if (voiceId !== undefined) aUpdate.voiceId = voiceId || null;
     if (avatarUrl !== undefined) aUpdate.avatarUrl = avatarUrl || null;

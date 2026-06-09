@@ -9,9 +9,12 @@ import {
   renderDials,
   type PersonaDials,
 } from "./definition";
+import { languageDirective, type LangCode } from "./languages";
 
 export type AssembleInput = {
   assistantName: string;
+  /** Her speaking language/dialect (defaults to English). */
+  language?: LangCode;
   dials?: PersonaDials;
   canon: CanonEntry[];
   mood: MoodSnapshot;
@@ -147,14 +150,8 @@ export function assembleSystem(input: AssembleInput): string {
     ].join("\n"),
   );
 
-  // Language override: reply in English (same warm personality) when the UI is English.
-  if (input.locale === "en") {
-    blocks.push(
-      "LANGUAGE: Reply in natural, warm English with the exact same personality, " +
-        "feelings, mood and intimacy. Never break character or mention being an AI. " +
-        "If the user writes in Arabic, match their language.",
-    );
-  }
+  // Her speaking language/dialect (independent of the app UI locale).
+  blocks.push(languageDirective(input.language ?? (input.locale === "en" ? "en" : "masri")));
 
   return blocks.join("\n\n");
 }
