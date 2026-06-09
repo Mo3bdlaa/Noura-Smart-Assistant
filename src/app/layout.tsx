@@ -27,14 +27,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   applicationName: "أنيس",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "أنيس" },
-  icons: {
-    icon: [
-      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    apple: [{ url: "/icon-192.png" }],
-  },
+  // Favicon + apple-touch come from app/icon.png and app/apple-icon.png (file-based,
+  // auto cache-busted). The manifest still lists the PWA icons.
 };
 
 export const viewport: Viewport = {

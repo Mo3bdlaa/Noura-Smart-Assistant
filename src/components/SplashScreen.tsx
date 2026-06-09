@@ -54,14 +54,13 @@ export function SplashScreen() {
       <div className="relative flex flex-col items-center gap-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/splash.jpg"
+          src="/icon-512.png"
           alt=""
           className={cn(
-            "w-44 h-56 object-cover rounded-[2rem] shadow-2xl ring-1 ring-white/10",
+            "size-40 object-cover rounded-[2.2rem] shadow-2xl ring-1 ring-white/10",
             "transition-all duration-[900ms] ease-out",
             enter ? "opacity-100 scale-100" : "opacity-0 scale-90",
           )}
-          style={{ objectPosition: "50% 22%" }}
         />
         <div
           className={cn(

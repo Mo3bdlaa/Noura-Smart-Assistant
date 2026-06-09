@@ -55,6 +55,8 @@ export const assistants = pgTable(
     // she's aware of her own appearance.
     avatarUrl: text("avatar_url"),
     appearance: text("appearance"),
+    // per-assistant ElevenLabs voice (falls back to the global voice when unset).
+    voiceId: text("voice_id"),
     // last time the user actually said something — drives absence-awareness/"dreams".
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     // last time SHE reached out first (throttles proactive outreach).

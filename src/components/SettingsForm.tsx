@@ -32,7 +32,13 @@ export function SettingsForm({
   provider,
 }: {
   isAdmin: boolean;
-  initial: { displayName: string; timezone: string; assistantName: string };
+  initial: {
+    displayName: string;
+    timezone: string;
+    assistantName: string;
+    appearance: string;
+    voiceId: string;
+  };
   provider?: {
     baseUrl: string;
     chatModel: string;
@@ -257,6 +263,25 @@ export function SettingsForm({
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field
+              label={t("شكلها (للوصف وتوليد الصور)", "Her looks (for self-description & image gen)")}
+              hint={t("اوصف شكلها بإيجاز — بتستخدمه لما توصف نفسها أو تبعت/تولّد صورة.", "Briefly describe her — used when she describes herself or sends/generates a photo.")}
+            >
+              <Textarea
+                rows={2}
+                placeholder={t("مثلاً: بنت مصرية، شعر بني مموج، عيون خضرا، ابتسامة دافية...", "e.g. Egyptian woman, wavy brown hair, green eyes, warm smile...")}
+                value={profile.appearance}
+                onChange={(e) => setProfile((p) => ({ ...p, appearance: e.target.value }))}
+              />
+            </Field>
+            <Field label={t("صوتها (Voice ID)", "Her voice (Voice ID)")} hint={t("من ElevenLabs — سيبه فاضي للصوت الافتراضي", "from ElevenLabs — empty for the default voice")}>
+              <Input
+                dir="ltr"
+                placeholder="21m00Tcm4TlvDq8ikWAM"
+                value={profile.voiceId}
+                onChange={(e) => setProfile((p) => ({ ...p, voiceId: e.target.value }))}
+              />
             </Field>
             <Button type="submit" loading={savingProfile}>
               {t("حفظ", "Save")}

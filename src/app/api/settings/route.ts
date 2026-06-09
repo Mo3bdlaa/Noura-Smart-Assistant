@@ -12,6 +12,8 @@ const Body = z.object({
   timezone: z.string().trim().min(1).max(64).optional(),
   assistantName: z.string().trim().min(2).max(40).optional(),
   locale: z.enum(["ar", "en"]).optional(),
+  appearance: z.string().trim().max(1500).optional(),
+  voiceId: z.string().trim().max(100).optional(),
 });
 
 function isValidTimezone(tz: string): boolean {
@@ -31,10 +33,19 @@ export async function PATCH(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "بيانات غير صحيحة" }, { status: 400 });
   }
-  const { displayName, timezone, assistantName, locale } = parsed.data;
+  const { displayName, timezone, assistantName, locale, appearance, voiceId } = parsed.data;
 
   if (timezone && !isValidTimezone(timezone)) {
     return NextResponse.json({ error: "منطقة زمنية غير معروفة" }, { status: 400 });
+  }
+
+  // Per-assistant profile fields (her look + her voice).
+  if (appearance !== undefined || voiceId !== undefined) {
+    const ctx = await tenantForUser(user.id, user.role);
+    const aUpdate: Partial<typeof assistants.$inferInsert> = {};
+    if (appearance !== undefined) aUpdate.appearance = appearance || null;
+    if (voiceId !== undefined) aUpdate.voiceId = voiceId || null;
+    await db.update(assistants).set(aUpdate).where(eq(assistants.id, ctx.assistantId));
   }
 
   if (assistantName) {

@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
   const ctx = await tenantForUser(user.id, user.role);
   const [assistant] = await db
-    .select({ name: assistants.name })
+    .select({ name: assistants.name, appearance: assistants.appearance, voiceId: assistants.voiceId })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -31,6 +31,8 @@ export default async function SettingsPage() {
         displayName: user.displayName ?? "",
         timezone: user.timezone,
         assistantName: assistant?.name ?? "نورا",
+        appearance: assistant?.appearance ?? "",
+        voiceId: assistant?.voiceId ?? "",
       }}
       provider={
         llm

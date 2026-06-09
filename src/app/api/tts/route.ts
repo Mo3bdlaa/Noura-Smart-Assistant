@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { AuthError, requireUser } from "@/lib/auth/guard";
+import { tenantForUser } from "@/lib/db/tenant";
+import { db } from "@/lib/db/client";
+import { assistants } from "@/lib/db/schema";
 import { getSetting } from "@/lib/settings";
 import { getVoiceKeys, markVoiceCooling, pickVoiceKey } from "@/lib/voice/keys";
 
@@ -16,8 +20,9 @@ const MODEL = "eleven_flash_v2_5";
  * client falls back to the browser voice.
  */
 export async function POST(req: Request) {
+  let user;
   try {
-    await requireUser();
+    user = await requireUser();
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.code }, { status: err.status });
     throw err;
@@ -26,8 +31,24 @@ export async function POST(req: Request) {
   const keys = await getVoiceKeys();
   if (keys.length === 0) return new NextResponse(null, { status: 204 });
 
+  // Prefer this user's assistant voice, then the global one, then a default.
+  let assistantVoice: string | null = null;
+  try {
+    const ctx = await tenantForUser(user.id, user.role);
+    const [a] = await db
+      .select({ voiceId: assistants.voiceId })
+      .from(assistants)
+      .where(eq(assistants.id, ctx.assistantId))
+      .limit(1);
+    assistantVoice = a?.voiceId ?? null;
+  } catch {
+    /* fall back to global */
+  }
   const voiceId =
-    process.env.ELEVENLABS_VOICE_ID || (await getSetting("elevenlabs_voice_id")) || DEFAULT_VOICE;
+    assistantVoice ||
+    process.env.ELEVENLABS_VOICE_ID ||
+    (await getSetting("elevenlabs_voice_id")) ||
+    DEFAULT_VOICE;
 
   const body = (await req.json().catch(() => null)) as { text?: string } | null;
   const text = (body?.text ?? "").replace(/[*_#`>~]/g, "").trim().slice(0, 800);
