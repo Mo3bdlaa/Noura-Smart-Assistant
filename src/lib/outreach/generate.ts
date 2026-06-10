@@ -7,6 +7,7 @@ import { assembleSystem } from "@/lib/persona/assemble";
 import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
 import { sendPushToUser } from "@/lib/push/send";
+import { secretaryContext } from "@/lib/secretary/items";
 
 const MIN_GAP_MS = 5 * 3_600_000; // at least 5h between her unprompted messages
 const DAILY_CAP = 3; // never more than this many a day
@@ -78,13 +79,23 @@ export async function generateProactiveOutreach(
 
   const mood = await readMood(assistantId);
   const en = user.locale === "en";
+  const isHelper = assistant.archetype === "secretary" || assistant.archetype === "progressive";
+  // For a morning brief, pull her open to-dos so she can run them down.
+  const secretary = isHelper && kind === "morning" ? await secretaryContext(assistantId).catch(() => null) : null;
   const system = assembleSystem({
     assistantName: assistant.name,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     dials: assistant.persona as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    archetype: assistant.archetype as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    gender: assistant.gender as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    language: assistant.language as any,
     canon: (assistant.canon as CanonEntry[]) ?? [],
     mood,
     memories: [],
+    secretary,
     time: timeContext(tz),
     userDisplayName: user.displayName,
     appearance: assistant.appearance,
@@ -93,14 +104,21 @@ export async function generateProactiveOutreach(
   });
 
   const days = Math.max(1, Math.floor(sinceSeen / 86_400_000));
+  const morningPrompt = secretary
+    ? en
+      ? "Good-morning text first: a short warm hello, then a quick natural rundown of his open to-dos from your context. Brief, no preamble."
+      : "ابعتي له الأول: صباح خير قصير ودافي، وبعده بريفينج سريع وطبيعي لمهامه المفتوحة اللي في سياقك. مختصر من غير مقدمات."
+    : en
+      ? "Text him first now: a short, warm good-morning in your own words. One line, natural, no preamble."
+      : "ابعتي له الأول دلوقتي: صباح خير قصير ودافي بطريقتك. سطر واحد طبيعي من غير مقدمات.";
   const prompt = en
     ? kind === "morning"
-      ? "Text him first now: a short, warm good-morning in your own words. One line, natural, no preamble."
+      ? morningPrompt
       : kind === "miss"
         ? `He's been away ~${days} day(s). Text him first: a short line that you missed him, warm and a little vulnerable. One line, no preamble.`
         : "Text him first now: a short, natural check-in (what's he up to / thinking of him). One line, no preamble."
     : kind === "morning"
-      ? "ابعتي له الأول دلوقتي: صباح خير قصير ودافي بطريقتك. سطر واحد طبيعي من غير مقدمات."
+      ? morningPrompt
       : kind === "miss"
         ? `بقاله ~${days} يوم مكلّمكيش. ابعتي له الأول: سطر قصير إنه وحشك، بحنية وشوية ضعف. سطر واحد من غير مقدمات.`
         : "ابعتي له الأول دلوقتي: اطمني عليه أو قوليله إنك بتفكري فيه، حاجة قصيرة وطبيعية. سطر واحد من غير مقدمات.";
