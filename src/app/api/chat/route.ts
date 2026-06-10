@@ -31,6 +31,7 @@ import {
 import { parseLeadTags, couldBeLeadTag, controlFrame } from "@/lib/chat/react-tag";
 import { pickThrowback } from "@/lib/memory/throwback";
 import { getConversationSummary, maybeSummarize } from "@/lib/memory/summarize";
+import { addItem, markDoneByText, parseSecretaryTags, secretaryContext } from "@/lib/secretary/items";
 import { buildSelfieUrl } from "@/lib/image/generate";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
@@ -138,6 +139,8 @@ export async function POST(req: Request) {
       ? Promise.resolve(null)
       : getConversationSummary(conversationId).catch(() => null),
   ]);
+  const secretary =
+    conv.type === "incognito" ? null : await secretaryContext(ctx.assistantId).catch(() => null);
 
   // Now and then, once there's history, she spontaneously reminisces about an old
   // memory ("افتكرت إنك...") unprompted — makes her feel like she truly remembers.
@@ -165,6 +168,7 @@ export async function POST(req: Request) {
     mood,
     memories,
     summary,
+    secretary,
     userNotes: profile?.userNotes,
     appearance: assistant?.appearance ?? null,
     time: timeContext(user.timezone),
@@ -262,11 +266,11 @@ export async function POST(req: Request) {
       // case a tag is split across chunks.
       let outBuf = "";
       const VOICE_RE = /<\s*\/?\s*voice\s*\/?\s*>/gi;
+      // strip both voice tags and secretary capture tags from the visible reply
+      const STRIP_RE = /<\s*\/?\s*voice\s*\/?\s*>|<\s*(?:todo|note|done)\s*:[^>]*>/gi;
       const flushSafe = () => {
-        if (VOICE_RE.test(outBuf)) {
-          isVoice = true;
-          outBuf = outBuf.replace(VOICE_RE, "");
-        }
+        if (VOICE_RE.test(outBuf)) isVoice = true;
+        outBuf = outBuf.replace(STRIP_RE, "");
         // hold from a trailing unclosed "<" (could be a partial tag)
         const lt = outBuf.lastIndexOf("<");
         let emit = outBuf;
@@ -349,7 +353,22 @@ export async function POST(req: Request) {
         // The model sometimes emits a stray voice tag (<voice/>, </voice>) — treat any
         // of them as voice and strip it so it never leaks into the text.
         if (/<\s*\/?\s*voice\s*\/?\s*>/i.test(rest)) isVoice = true;
-        const replyText = rest.replace(/<\s*\/?\s*voice\s*\/?\s*>/gi, "").trim();
+        const replyText = rest
+          .replace(/<\s*\/?\s*voice\s*\/?\s*>/gi, "")
+          .replace(/<\s*(?:todo|note|done)\s*:[^>]*>/gi, "")
+          .trim();
+
+        // Capture any to-dos / notes / completions she filed (skip incognito).
+        if (conv.type !== "incognito") {
+          try {
+            const sec = parseSecretaryTags(full);
+            for (const c of sec.todos) await addItem(ctx!, "todo", c);
+            for (const c of sec.notes) await addItem(ctx!, "note", c);
+            for (const c of sec.dones) await markDoneByText(ctx!, c);
+          } catch (e) {
+            console.error("secretary capture failed", e);
+          }
+        }
 
         // A reaction goes onto the user's message; the reply (if any) is saved separately,
         // carrying the quoted-reply snapshot so it renders on reload too.

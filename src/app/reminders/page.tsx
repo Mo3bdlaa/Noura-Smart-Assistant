@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CalendarHeart, Globe, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Bell, CalendarHeart, CheckSquare, Globe, Plus, Sparkles, Square, StickyNote, Trash2 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -29,12 +29,18 @@ type Task = {
   recurrence: "once" | "daily" | "weekly";
 };
 
+type SecItem = { id: string; kind: "todo" | "note"; content: string; done: boolean };
+
 export default function RemindersPage() {
   const confirm = useConfirm();
   const toast = useToast();
   const { t, locale } = useI18n();
   const [items, setItems] = useState<Reminder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [todos, setTodos] = useState<SecItem[]>([]);
+  const [notes, setNotes] = useState<SecItem[]>([]);
+  const [todoText, setTodoText] = useState("");
+  const [noteText, setNoteText] = useState("");
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<"reminder" | "important_date">("reminder");
   const [title, setTitle] = useState("");
@@ -43,14 +49,53 @@ export default function RemindersPage() {
 
   async function load() {
     setLoading(true);
-    const [rRes, tRes] = await Promise.all([fetch("/api/reminders"), fetch("/api/tasks")]);
+    const [rRes, tRes, sRes] = await Promise.all([
+      fetch("/api/reminders"),
+      fetch("/api/tasks"),
+      fetch("/api/secretary"),
+    ]);
     setItems((await rRes.json()).reminders ?? []);
     setTasks((await tRes.json().catch(() => ({}))).tasks ?? []);
+    const sec = await sRes.json().catch(() => ({}));
+    setTodos(sec.todos ?? []);
+    setNotes(sec.notes ?? []);
     setLoading(false);
   }
   useEffect(() => {
     load();
   }, []);
+
+  async function addSec(kind: "todo" | "note", content: string) {
+    if (!content.trim()) return;
+    const res = await fetch("/api/secretary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, content: content.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.item) {
+      if (kind === "todo") setTodos((x) => [data.item, ...x]);
+      else setNotes((x) => [data.item, ...x]);
+    }
+    kind === "todo" ? setTodoText("") : setNoteText("");
+  }
+  async function toggleSec(id: string) {
+    setTodos((x) => x.map((i) => (i.id === id ? { ...i, done: !i.done } : i)));
+    await fetch("/api/secretary", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+  }
+  async function delSec(id: string, kind: "todo" | "note") {
+    await fetch("/api/secretary", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (kind === "todo") setTodos((x) => x.filter((i) => i.id !== id));
+    else setNotes((x) => x.filter((i) => i.id !== id));
+  }
 
   async function delTask(id: string) {
     const ok = await confirm({
@@ -179,8 +224,82 @@ export default function RemindersPage() {
   });
 
   return (
-    <PageShell title={t("التذكيرات والمناسبات", "Reminders & dates")} icon={<Bell className="size-5" />}>
-      {/* add form */}
+    <PageShell title={t("مهامك وتذكيراتك", "Your tasks & reminders")} icon={<Bell className="size-5" />}>
+      {/* to-do list (she manages these too) */}
+      <Card className="p-5 mb-5">
+        <h2 className="text-sm font-bold text-ink mb-3 flex items-center gap-1.5">
+          <CheckSquare className="size-4 text-accent" /> {t("مهامي", "My to-dos")}
+        </h2>
+        <div className="flex gap-2 mb-3">
+          <Input
+            value={todoText}
+            onChange={(e) => setTodoText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addSec("todo", todoText)}
+            placeholder={t("أعمل إيه؟", "What to do?")}
+            className="h-11"
+          />
+          <Button variant="outline" onClick={() => addSec("todo", todoText)}>
+            <Plus className="size-4" />
+          </Button>
+        </div>
+        {todos.length === 0 ? (
+          <p className="text-sm text-muted">{t("مفيش مهام — ضيف واحدة أو سيب نورا تسجّلها من الشات.", "No to-dos — add one or let her capture them in chat.")}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {todos.map((it) => (
+              <li key={it.id} className="flex items-center gap-2.5 group">
+                <button onClick={() => toggleSec(it.id)} aria-label="done" className="shrink-0">
+                  {it.done ? (
+                    <CheckSquare className="size-5 text-accent" />
+                  ) : (
+                    <Square className="size-5 text-muted" />
+                  )}
+                </button>
+                <span className={cn("flex-1 text-sm text-ink", it.done && "line-through text-muted")}>
+                  {it.content}
+                </span>
+                <IconButton size="sm" subtle onClick={() => delSec(it.id, "todo")} aria-label="حذف">
+                  <Trash2 className="size-4" />
+                </IconButton>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* quick notes */}
+      <Card className="p-5 mb-6">
+        <h2 className="text-sm font-bold text-ink mb-3 flex items-center gap-1.5">
+          <StickyNote className="size-4 text-accent" /> {t("نوتس", "Notes")}
+        </h2>
+        <div className="flex gap-2 mb-3">
+          <Input
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addSec("note", noteText)}
+            placeholder={t("احفظيلي إن...", "Note to keep...")}
+            className="h-11"
+          />
+          <Button variant="outline" onClick={() => addSec("note", noteText)}>
+            <Plus className="size-4" />
+          </Button>
+        </div>
+        {notes.length > 0 && (
+          <ul className="space-y-1.5">
+            {notes.map((it) => (
+              <li key={it.id} className="flex items-start gap-2.5 group">
+                <StickyNote className="size-4 text-faint mt-0.5 shrink-0" />
+                <span className="flex-1 text-sm text-ink">{it.content}</span>
+                <IconButton size="sm" subtle onClick={() => delSec(it.id, "note")} aria-label="حذف">
+                  <Trash2 className="size-4" />
+                </IconButton>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* add reminder form */}
       <Card className="p-5 mb-6">
         <div className="flex gap-2 mb-4">
           <KindTab active={kind === "reminder"} onClick={() => setKind("reminder")} icon={<Bell className="size-4" />} label={t("تذكير", "Reminder")} />

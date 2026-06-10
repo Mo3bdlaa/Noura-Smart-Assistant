@@ -337,6 +337,29 @@ export const assistantPhotos = pgTable(
 );
 export type AssistantPhoto = typeof assistantPhotos.$inferSelect;
 
+// Things she manages for you as a secretary: to-dos and quick notes.
+export const secretaryItems = pgTable(
+  "secretary_items",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assistantId: uuid("assistant_id")
+      .notNull()
+      .references(() => assistants.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["todo", "note"] }).notNull(),
+    content: text("content").notNull(),
+    done: boolean("done").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+  },
+  (t) => ({
+    byScope: index("secretary_items_scope_idx").on(t.assistantId, t.kind, t.done),
+  }),
+);
+export type SecretaryItem = typeof secretaryItems.$inferSelect;
+
 // Async work queue (memory extraction; seam for the future nightly consolidation job).
 export const jobs = pgTable(
   "jobs",

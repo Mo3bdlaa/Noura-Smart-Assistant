@@ -28,6 +28,8 @@ export type AssembleInput = {
   memories: RetrievedMemory[];
   /** Rolling recap of earlier turns in this conversation (beyond recent history). */
   summary?: string | null;
+  /** Her secretary worklist (open to-dos + notes) for briefings/answers. */
+  secretary?: string | null;
   time: TimeContext;
   userDisplayName?: string | null;
   /** Pre-framed things Noura should bring up naturally (security, follow-ups, time). */
@@ -68,6 +70,19 @@ export function assembleSystem(input: AssembleInput): string {
   // gender reminder (the formatting instructions below are written feminine)
   if (input.gender === "male") {
     blocks.push("تذكير مهم: إنت ذكر — اتكلم عن نفسك بصيغة المذكر دايمًا في كل ردودك.");
+  }
+
+  // secretary tools (capture + briefing) — only for the helper archetypes
+  if (input.archetype === "secretary" || input.archetype === "progressive") {
+    blocks.push(
+      "أدواتك كسكرتيرة (مهم): لو طلب تفتكري له مهمة أو حاجة يعملها، سجّليها بإصدار تاج <todo: نص المهمة> جوه ردّك وأكّديله بطبيعية. " +
+        "لو قال معلومة عايز تتحفظ، استخدمي <note: النص>. لو قال إنه خلّص مهمة، استخدمي <done: كلمة من المهمة>. " +
+        "التاجات دي بتتنفّذ وتختفي تلقائياً من رسالتك — اكتبي ردّك العادي معاها من غير ما تكرريها كنص. " +
+        "لو سألك عن مهامه أو طلب بريفينج/تلخيص يومه، استعيني بقايمة 'مهام مفتوحة' و'نوتس' اللي في سياقك ولخّصيهاله مرتّب، وبادري بتذكيره بالناقص لما يكون مناسب.",
+    );
+  }
+  if (input.secretary) {
+    blocks.push(input.secretary);
   }
   blocks.push(renderDials(dials));
   if (input.userDisplayName) {
