@@ -360,6 +360,15 @@ export const secretaryItems = pgTable(
 );
 export type SecretaryItem = typeof secretaryItems.$inferSelect;
 
+// Cache of synthesized speech, keyed by sha256(voice|text), so a line is generated
+// once and every later play is instant (no re-generation, no extra quota).
+export const ttsCache = pgTable("tts_cache", {
+  key: text("key").primaryKey(),
+  mime: text("mime").notNull(),
+  audio: text("audio").notNull(), // base64
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Async work queue (memory extraction; seam for the future nightly consolidation job).
 export const jobs = pgTable(
   "jobs",

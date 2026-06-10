@@ -26,6 +26,7 @@ export function VoiceNote({ text }: { text: string }) {
   const [realAudio, setRealAudio] = useState(false); // false = browser-TTS (no seek bar)
   const [showText, setShowText] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null); // cached audio for instant replay
 
   function stopBrowser() {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
@@ -35,6 +36,24 @@ export function VoiceNote({ text }: { text: string }) {
     setState("idle");
     setProgress(0);
     setElapsed(0);
+  }
+
+  // Play from an already-fetched blob URL (no re-generation).
+  async function playUrl(url: string) {
+    const a = new Audio(url);
+    audioRef.current = a;
+    setRealAudio(true);
+    a.onloadedmetadata = () => setDuration(a.duration || 0);
+    a.ontimeupdate = () => {
+      setElapsed(a.currentTime);
+      if (a.duration) setProgress(a.currentTime / a.duration);
+    };
+    a.onended = () => {
+      reset(); // keep the blob cached for instant replay
+      audioRef.current = null;
+    };
+    await a.play();
+    setState("playing");
   }
 
   async function toggle() {
@@ -56,6 +75,11 @@ export function VoiceNote({ text }: { text: string }) {
 
     const clean = text.replace(/[*_#`>~]/g, "").trim();
     if (!clean) return;
+    // Already fetched once this session → replay instantly, no refetch.
+    if (blobUrlRef.current) {
+      await playUrl(blobUrlRef.current);
+      return;
+    }
     setState("loading");
     try {
       const res = await fetch("/api/tts", {
@@ -65,21 +89,8 @@ export function VoiceNote({ text }: { text: string }) {
       });
       if (res.ok && (res.headers.get("content-type") ?? "").includes("audio")) {
         const url = URL.createObjectURL(await res.blob());
-        const a = new Audio(url);
-        audioRef.current = a;
-        setRealAudio(true);
-        a.onloadedmetadata = () => setDuration(a.duration || 0);
-        a.ontimeupdate = () => {
-          setElapsed(a.currentTime);
-          if (a.duration) setProgress(a.currentTime / a.duration);
-        };
-        a.onended = () => {
-          reset();
-          URL.revokeObjectURL(url);
-          audioRef.current = null;
-        };
-        await a.play();
-        setState("playing");
+        blobUrlRef.current = url;
+        await playUrl(url);
         return;
       }
     } catch {

@@ -32,6 +32,7 @@ import { parseLeadTags, couldBeLeadTag, controlFrame } from "@/lib/chat/react-ta
 import { pickThrowback } from "@/lib/memory/throwback";
 import { getConversationSummary, maybeSummarize } from "@/lib/memory/summarize";
 import { addItem, markDoneByText, parseSecretaryTags, secretaryContext } from "@/lib/secretary/items";
+import { warmTTS } from "@/lib/voice/tts";
 import { buildSelfieUrl } from "@/lib/image/generate";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
@@ -179,12 +180,23 @@ export async function POST(req: Request) {
     locale: await getLocale(),
   });
 
+  // Set by the stream when she sends a voice note → pre-generate its audio so the
+  // first play is instant (no on-demand generation).
+  let warmText: string | null = null;
+
   // Run async memory/mood reflection after the response is sent.
   after(async () => {
     try {
       await drainJobs();
     } catch (e) {
       console.error("drainJobs failed", e);
+    }
+    if (warmText) {
+      try {
+        await warmTTS(ctx.assistantId, warmText);
+      } catch (e) {
+        console.error("warmTTS failed", e);
+      }
     }
     // Detect scheduling requests in this message — a message may create several
     // tasks (e.g. morning + night). They're tied to THIS conversation.
@@ -379,6 +391,7 @@ export async function POST(req: Request) {
             console.error("set reaction failed", e);
           }
         }
+        if (isVoice && replyText) warmText = replyText; // pre-generate the voice audio
         if (replyText || resolvedPhoto) {
           const meta: Record<string, unknown> = {};
           if (resolvedReplyTo) meta.replyTo = resolvedReplyTo;
