@@ -52,6 +52,8 @@ export default async function ConversationPage({
               sideCard?: string;
               replyTo?: { id: string; role: "user" | "assistant"; preview: string };
               voice?: boolean;
+              taskId?: string;
+              reminder?: boolean;
             } | null) ?? null;
           return {
             id: m.id,
@@ -62,6 +64,7 @@ export default async function ConversationPage({
             sideCardId: meta?.sideCard,
             replyTo: meta?.replyTo ?? null,
             voice: meta?.voice ?? false,
+            taskId: meta?.reminder ? meta?.taskId : undefined,
           };
         })}
     />

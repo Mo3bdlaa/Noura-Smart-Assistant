@@ -66,27 +66,36 @@ export async function advanceTask(task: Task, firedAt = new Date()): Promise<voi
   await db.update(tasks).set({ nextRunAt: next, lastRunAt: firedAt }).where(eq(tasks.id, task.id));
 }
 
-export type TaskWithState = Task & { completedToday: boolean };
+export type TaskWithState = Task & { completedToday: boolean; recentDays: string[] };
 
-/** Active tasks + whether a recurring one is already done for `day` (local YYYY-MM-DD). */
+/** Active tasks + completion state (today + recent days for a habit strip/calendar). */
 export async function listTasksWithState(ctx: TenantContext, day: string): Promise<TaskWithState[]> {
   const rows = await listTasks(ctx);
   if (rows.length === 0) return [];
   const comps = await db
-    .select({ taskId: taskCompletions.taskId })
+    .select({ taskId: taskCompletions.taskId, day: taskCompletions.day })
     .from(taskCompletions)
     .where(
       and(
         eq(taskCompletions.userId, ctx.userId),
-        eq(taskCompletions.day, day),
         inArray(
           taskCompletions.taskId,
           rows.map((r) => r.id),
         ),
       ),
-    );
-  const doneSet = new Set(comps.map((c) => c.taskId));
-  return rows.map((r) => ({ ...r, completedToday: doneSet.has(r.id) }));
+    )
+    .orderBy(asc(taskCompletions.day))
+    .limit(2000);
+  const byTask = new Map<string, string[]>();
+  for (const c of comps) {
+    const arr = byTask.get(c.taskId) ?? [];
+    arr.push(c.day);
+    byTask.set(c.taskId, arr);
+  }
+  return rows.map((r) => {
+    const days = byTask.get(r.id) ?? [];
+    return { ...r, completedToday: days.includes(day), recentDays: days };
+  });
 }
 
 /**

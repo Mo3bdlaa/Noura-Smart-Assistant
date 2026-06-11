@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
+  CheckCircle2,
+  Circle,
   GitBranch,
   Glasses,
   ImagePlus,
@@ -40,6 +42,10 @@ type Msg = {
   reaction?: string | null;
   /** render this (assistant) message as a voice note */
   voice?: boolean;
+  /** if this is a reminder message, the task it can mark done */
+  taskId?: string;
+  /** local: the reminder was checked off */
+  taskDone?: boolean;
   /** quoted message this one is replying to */
   replyTo?: ReplyRef | null;
   /** if set, this row is a card linking to a side conversation */
@@ -505,6 +511,11 @@ export function ChatWindow({
       return n;
     });
   }
+  async function markTaskDone(msgId: string, taskId?: string) {
+    if (!taskId) return;
+    setMessages((m) => m.map((x) => (x.id === msgId ? { ...x, taskDone: true } : x)));
+    await fetch(`/api/tasks/${taskId}`, { method: "PATCH" }).catch(() => {});
+  }
   function cancelFork() {
     setForkMode(false);
     setSelected(new Set());
@@ -619,6 +630,7 @@ export function ChatWindow({
                   forkMode={forkMode}
                   selected={selected.has(m.id)}
                   onToggleSelect={() => toggleSelect(m.id)}
+                  onMarkTask={() => markTaskDone(m.id, m.taskId)}
                 />
               ),
             )
@@ -812,6 +824,7 @@ function Bubble({
   forkMode,
   selected,
   onToggleSelect,
+  onMarkTask,
 }: {
   msg: Msg;
   assistantName: string;
@@ -828,7 +841,9 @@ function Bubble({
   forkMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  onMarkTask?: () => void;
 }) {
+  const { t } = useI18n();
   const isUser = msg.role === "user";
   // Split on blank lines into separate bubbles. Markdown renders each segment, so
   // single line-breaks flow as spaces while real lists/blocks render properly.
@@ -927,6 +942,21 @@ function Bubble({
               {msg.reaction}
             </span>
           </div>
+        )}
+
+        {msg.taskId && (
+          <button
+            onClick={onMarkTask}
+            className={cn(
+              "mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-theme",
+              msg.taskDone
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-border bg-bg text-muted hover:text-ink",
+            )}
+          >
+            {msg.taskDone ? <CheckCircle2 className="size-3.5" /> : <Circle className="size-3.5" />}
+            {msg.taskDone ? t("اتعملت ✅", "Done ✅") : t("خلّصتها", "Mark done")}
+          </button>
         )}
       </div>
 

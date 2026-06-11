@@ -28,7 +28,20 @@ type Task = {
   nextRunAt: string;
   recurrence: "once" | "daily" | "weekly";
   completedToday: boolean;
+  recentDays: string[];
 };
+
+// Last 14 local dates as YYYY-MM-DD (oldest → today).
+function last14(): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const x = new Date(d);
+    x.setDate(d.getDate() - i);
+    out.push(`${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`);
+  }
+  return out;
+}
 
 type SecItem = { id: string; kind: "todo" | "note"; content: string; done: boolean };
 
@@ -376,6 +389,19 @@ export default function RemindersPage() {
                       {fmtTask(r)}
                       {recurring && <Chip tone="warm">{r.recurrence === "daily" ? t("يوميًا", "daily") : t("أسبوعيًا", "weekly")}</Chip>}
                     </div>
+                    {recurring && (
+                      <div className="flex gap-1 mt-2" title={t("آخر ١٤ يوم", "last 14 days")}>
+                        {last14().map((d) => (
+                          <span
+                            key={d}
+                            className={cn(
+                              "size-2.5 rounded-full",
+                              r.recentDays.includes(d) ? "bg-accent" : "bg-elevated",
+                            )}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <IconButton size="sm" subtle onClick={() => delTask(r.id)} aria-label={t("حذف", "Delete")}>
                     <Trash2 className="size-4" />

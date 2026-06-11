@@ -94,7 +94,7 @@ async function runTask(task: Task): Promise<void> {
     userId: task.userId,
     role: "assistant",
     content: text.trim(),
-    meta: { proactive: true, taskId: task.id },
+    meta: { proactive: true, taskId: task.id, reminder: task.kind === "remind" },
   });
 
   await sendPushToUser(task.userId, {
