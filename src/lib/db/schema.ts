@@ -459,6 +459,7 @@ export const tasks = pgTable(
       .notNull()
       .default("once"),
     active: boolean("active").notNull().default(true),
+    doneAt: timestamp("done_at", { withTimezone: true }), // one-off tasks: when marked done
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -466,6 +467,26 @@ export const tasks = pgTable(
     due: index("tasks_due_idx").on(t.active, t.nextRunAt),
   }),
 );
+
+// Per-occurrence completion for recurring tasks (e.g. meds checked off each day).
+export const taskCompletions = pgTable(
+  "task_completions",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // local YYYY-MM-DD
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqDay: uniqueIndex("task_completions_uniq").on(t.taskId, t.day),
+  }),
+);
+export type TaskCompletion = typeof taskCompletions.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 
 /**

@@ -39,8 +39,9 @@ import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 import { getLocale } from "@/lib/i18n";
 import { friendlyError } from "@/lib/llm/errors";
+import { formatInTimeZone } from "date-fns-tz";
 import { detectTasks } from "@/lib/tasks/detect";
-import { createTask } from "@/lib/tasks/store";
+import { completeTaskByTitle, createTask } from "@/lib/tasks/store";
 import { runDueTasks } from "@/lib/tasks/run";
 import { captureMood } from "@/lib/timeline/snapshot";
 import { touchLastSeen } from "@/lib/dreams/generate";
@@ -376,7 +377,11 @@ export async function POST(req: Request) {
             const sec = parseSecretaryTags(full);
             for (const c of sec.todos) await addItem(ctx!, "todo", c);
             for (const c of sec.notes) await addItem(ctx!, "note", c);
-            for (const c of sec.dones) await markDoneByText(ctx!, c);
+            const day = formatInTimeZone(new Date(), user!.timezone || "Africa/Cairo", "yyyy-MM-dd");
+            for (const c of sec.dones) {
+              await markDoneByText(ctx!, c); // a captured to-do
+              await completeTaskByTitle(ctx!, c, day); // …or a scheduled reminder/task
+            }
           } catch (e) {
             console.error("secretary capture failed", e);
           }

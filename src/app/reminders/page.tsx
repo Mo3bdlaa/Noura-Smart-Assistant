@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CalendarHeart, CheckSquare, Globe, Plus, Sparkles, Square, StickyNote, Trash2 } from "lucide-react";
+import { Bell, CalendarHeart, CheckCircle2, CheckSquare, Circle, Globe, Plus, Sparkles, Square, StickyNote, Trash2 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -27,6 +27,7 @@ type Task = {
   title: string;
   nextRunAt: string;
   recurrence: "once" | "daily" | "weekly";
+  completedToday: boolean;
 };
 
 type SecItem = { id: string; kind: "todo" | "note"; content: string; done: boolean };
@@ -107,6 +108,15 @@ export default function RemindersPage() {
     if (!ok) return;
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
     setTasks((x) => x.filter((r) => r.id !== id));
+  }
+
+  async function toggleTask(id: string) {
+    const task = tasks.find((x) => x.id === id);
+    const oneOff = task && task.recurrence === "once";
+    // one-off → disappears when done; recurring → toggle today's tick
+    if (oneOff) setTasks((x) => x.filter((r) => r.id !== id));
+    else setTasks((x) => x.map((r) => (r.id === id ? { ...r, completedToday: !r.completedToday } : r)));
+    await fetch(`/api/tasks/${id}`, { method: "PATCH" });
   }
 
   function fmtTask(r: Task): string {
@@ -327,30 +337,52 @@ export default function RemindersPage() {
         </form>
       </Card>
 
-      {/* auto tasks (created from chat) */}
+      {/* scheduled tasks & recurring reminders (she sets these / from chat) */}
       {tasks.length > 0 && (
         <div className="mb-6">
           <h2 className="text-sm font-semibold text-muted mb-2 flex items-center gap-1.5">
-            <Sparkles className="size-4 text-accent" /> {t("مهام تلقائية", "Auto tasks")}
+            <Sparkles className="size-4 text-accent" /> {t("مهام ومواعيد متكررة", "Tasks & recurring")}
           </h2>
           <ul className="space-y-2">
-            {tasks.map((r) => (
-              <li
-                key={r.id}
-                className="group flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3 shadow-soft animate-fade-in"
-              >
-                <span className="grid place-items-center size-10 rounded-xl bg-accent-soft text-accent shrink-0">
-                  {r.kind === "digest" ? <Globe className="size-5" /> : <Bell className="size-5" />}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-ink truncate">{r.title}</div>
-                  <div className="text-xs text-muted">{fmtTask(r)}</div>
-                </div>
-                <IconButton size="sm" subtle onClick={() => delTask(r.id)} aria-label={t("حذف", "Delete")}>
-                  <Trash2 className="size-4" />
-                </IconButton>
-              </li>
-            ))}
+            {tasks.map((r) => {
+              const recurring = r.recurrence !== "once";
+              return (
+                <li
+                  key={r.id}
+                  className="group flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3 shadow-soft animate-fade-in"
+                >
+                  {r.kind === "remind" ? (
+                    <button
+                      onClick={() => toggleTask(r.id)}
+                      aria-label={t("خلّصت", "Done")}
+                      className="shrink-0 active:scale-90 transition-transform"
+                    >
+                      {r.completedToday ? (
+                        <CheckCircle2 className="size-7 text-accent" />
+                      ) : (
+                        <Circle className="size-7 text-muted" />
+                      )}
+                    </button>
+                  ) : (
+                    <span className="grid place-items-center size-10 rounded-xl bg-accent-soft text-accent shrink-0">
+                      <Globe className="size-5" />
+                    </span>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className={cn("text-ink truncate", r.completedToday && "line-through text-muted")}>
+                      {r.title}
+                    </div>
+                    <div className="text-xs text-muted flex items-center gap-1.5">
+                      {fmtTask(r)}
+                      {recurring && <Chip tone="warm">{r.recurrence === "daily" ? t("يوميًا", "daily") : t("أسبوعيًا", "weekly")}</Chip>}
+                    </div>
+                  </div>
+                  <IconButton size="sm" subtle onClick={() => delTask(r.id)} aria-label={t("حذف", "Delete")}>
+                    <Trash2 className="size-4" />
+                  </IconButton>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
