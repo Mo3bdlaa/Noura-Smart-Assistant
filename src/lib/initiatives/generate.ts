@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { assistants, loginAttempts, pendingInitiatives, reminders } from "@/lib/db/schema";
-import { sendPushToUser } from "@/lib/push/send";
+import { deliverProactive } from "@/lib/proactive/deliver";
 
 /**
  * Turn raw events into "things Noura wants to say". Idempotent-ish: security
@@ -65,23 +65,22 @@ export async function generateReminderInitiatives(
 
   for (const r of due) {
     if (r.dueAt && r.dueAt <= now) {
-      await db.insert(pendingInitiatives).values({
-        userId,
-        assistantId,
-        kind: "reminder",
-        priority: 3,
-        payload: { title: r.title, kind: r.kind },
-      });
-      // Proactive push (when the app may be closed) — in her voice.
+      const name = await nameOf();
+      const body =
+        r.kind === "important_date"
+          ? `النهاردة: ${r.title} 🎉 متنساش!`
+          : `فاكر إن النهاردة: ${r.title}؟ 💛`;
       if (opts.notify) {
-        const name = await nameOf();
-        await sendPushToUser(userId, {
-          title: name,
-          body:
-            r.kind === "important_date"
-              ? `النهاردة: ${r.title} 🎉 متنساش!`
-              : `فاكر إن النهاردة: ${r.title}؟ 💛`,
-          url: "/chat",
+        // App may be closed → deliver a real message so the notification has content.
+        await deliverProactive(userId, assistantId, { text: body, pushTitle: name, meta: { reminderFired: true } });
+      } else {
+        // User is here → let her weave it into her next reply naturally.
+        await db.insert(pendingInitiatives).values({
+          userId,
+          assistantId,
+          kind: "reminder",
+          priority: 3,
+          payload: { title: r.title, kind: r.kind },
         });
       }
       if (r.recurrence === "yearly") {

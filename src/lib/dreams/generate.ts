@@ -5,7 +5,7 @@ import { readMood } from "@/lib/mood/state";
 import { assembleSystem } from "@/lib/persona/assemble";
 import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
-import { sendPushToUser } from "@/lib/push/send";
+import { deliverProactive } from "@/lib/proactive/deliver";
 
 // Only start missing them after this much silence, and don't pester: at most one
 // pending "dream" waiting to be surfaced at a time.
@@ -92,19 +92,21 @@ export async function generateDreamInitiatives(
   line = line.trim().replace(/^["'«»]+|["'«»]+$/g, "");
   if (!line) return false;
 
-  await db.insert(pendingInitiatives).values({
-    userId,
-    assistantId,
-    kind: "dream",
-    priority: 4,
-    payload: { text: line, days, asDream },
-  });
-
   if (opts.notify) {
-    await sendPushToUser(userId, {
-      title: assistant.name,
-      body: line.replace(/\s+/g, " ").slice(0, 120),
-      url: "/chat",
+    // App may be closed → deliver a real message so the notification has content.
+    await deliverProactive(userId, assistantId, {
+      text: line,
+      pushTitle: assistant.name,
+      meta: { dream: true },
+    });
+  } else {
+    // User is here → stash it so she brings it up naturally in her next reply.
+    await db.insert(pendingInitiatives).values({
+      userId,
+      assistantId,
+      kind: "dream",
+      priority: 4,
+      payload: { text: line, days, asDream },
     });
   }
   return true;
