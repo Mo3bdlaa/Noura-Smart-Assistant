@@ -33,6 +33,7 @@ import { pickThrowback } from "@/lib/memory/throwback";
 import { getConversationSummary, maybeSummarize } from "@/lib/memory/summarize";
 import { addItem, markDoneByText, parseSecretaryTags, secretaryContext } from "@/lib/secretary/items";
 import { warmTTS } from "@/lib/voice/tts";
+import { hasVoiceTag, stripControlTags } from "@/lib/chat/sanitize";
 import { buildSelfieUrl } from "@/lib/image/generate";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
@@ -355,21 +356,18 @@ export async function POST(req: Request) {
         }
       } finally {
         if (!decided) await decide(); // stream ended while still buffering
-        // flush any held tail (strip a leftover/partial voice tag)
+        // flush any held tail — strip complete AND trailing-partial control tags
         if (outBuf) {
-          if (VOICE_RE.test(outBuf)) isVoice = true;
-          const tail = outBuf.replace(VOICE_RE, "");
+          if (hasVoiceTag(outBuf)) isVoice = true;
+          const tail = stripControlTags(outBuf);
           if (tail) controller.enqueue(encoder.encode(tail));
           outBuf = "";
         }
         const { reaction, rest } = parseLeadTags(full);
         // The model sometimes emits a stray voice tag (<voice/>, </voice>) — treat any
-        // of them as voice and strip it so it never leaks into the text.
-        if (/<\s*\/?\s*voice\s*\/?\s*>/i.test(rest)) isVoice = true;
-        const replyText = rest
-          .replace(/<\s*\/?\s*voice\s*\/?\s*>/gi, "")
-          .replace(/<\s*(?:todo|note|done)\s*:[^>]*>/gi, "")
-          .trim();
+        // of them as voice and strip everything so no tag ever leaks into the text.
+        if (hasVoiceTag(rest)) isVoice = true;
+        const replyText = stripControlTags(rest);
 
         // Capture any to-dos / notes / completions she filed (skip incognito).
         if (conv.type !== "incognito") {

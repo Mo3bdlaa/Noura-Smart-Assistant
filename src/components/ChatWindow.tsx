@@ -303,6 +303,27 @@ export function ChatWindow({
     setMessages(initialMessages);
   }, [conversationId, initialMessages]);
 
+  // Reflect the real done-state on reminder checkboxes: a task that's completed
+  // today, finished, or gone shows as done instead of resetting to unchecked.
+  useEffect(() => {
+    if (!initialMessages.some((m) => m.taskId)) return;
+    fetch("/api/tasks")
+      .then((r) => r.json())
+      .then((d) => {
+        const alive = new Map(
+          ((d.tasks ?? []) as { id: string; completedToday?: boolean }[]).map((t) => [t.id, t]),
+        );
+        setMessages((ms) =>
+          ms.map((x) => {
+            if (!x.taskId) return x;
+            const t = alive.get(x.taskId);
+            return { ...x, taskDone: !t || !!t.completedToday };
+          }),
+        );
+      })
+      .catch(() => {});
+  }, [conversationId, initialMessages]);
+
   // auto-grow the textarea
   useEffect(() => {
     const ta = taRef.current;

@@ -8,6 +8,7 @@ import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
 import { sendPushToUser } from "@/lib/push/send";
 import { secretaryContext } from "@/lib/secretary/items";
+import { stripControlTags } from "@/lib/chat/sanitize";
 
 const MIN_GAP_MS = 5 * 3_600_000; // at least 5h between her unprompted messages
 const DAILY_CAP = 3; // never more than this many a day
@@ -129,7 +130,8 @@ export async function generateProactiveOutreach(
   } catch {
     return false;
   }
-  text = text.trim();
+  // Proactive messages never execute capture tags — strip anything she emitted.
+  text = stripControlTags(text);
   if (!text) return false;
 
   await db.insert(messages).values({

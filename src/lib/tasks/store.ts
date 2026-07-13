@@ -136,19 +136,38 @@ export async function toggleTaskDone(ctx: TenantContext, id: string, day: string
 export async function completeTaskByTitle(ctx: TenantContext, phrase: string, day: string): Promise<boolean> {
   const p = phrase.replace(/[%_]/g, " ").trim().slice(0, 80);
   if (p.length < 2) return false;
-  const [task] = await db
-    .select()
-    .from(tasks)
-    .where(
-      and(
-        eq(tasks.userId, ctx.userId),
-        eq(tasks.active, true),
-        eq(tasks.kind, "remind"),
-        sql`${tasks.title} ILIKE ${"%" + p + "%"}`,
-      ),
-    )
-    .orderBy(asc(tasks.nextRunAt))
-    .limit(1);
+
+  const findByNeedle = async (needle: string) => {
+    const [row] = await db
+      .select()
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, ctx.userId),
+          eq(tasks.active, true),
+          eq(tasks.kind, "remind"),
+          sql`${tasks.title} ILIKE ${"%" + needle + "%"}`,
+        ),
+      )
+      .orderBy(asc(tasks.nextRunAt))
+      .limit(1);
+    return row ?? null;
+  };
+
+  // Try the whole phrase, then fall back to its meaningful words — her wording
+  // rarely matches the stored title verbatim ("خد الدوا" vs "المستخدم أخذ الدواء").
+  let task = await findByNeedle(p);
+  if (!task) {
+    const stop = new Set(["المستخدم", "انا", "أنا", "خلصت", "خلّصت", "عملت", "اخد", "أخذ", "اخذ", "بتاع", "بتاعي", "اللي", "على", "علي"]);
+    const words = p
+      .split(/\s+/)
+      .map((w) => w.replace(/^(ال|و|ب|لل)/, "").trim())
+      .filter((w) => w.length >= 3 && !stop.has(w));
+    for (const w of words) {
+      task = await findByNeedle(w);
+      if (task) break;
+    }
+  }
   if (!task) return false;
   if (task.recurrence === "once") {
     await db.update(tasks).set({ active: false, doneAt: new Date() }).where(eq(tasks.id, task.id));

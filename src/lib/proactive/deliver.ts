@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { conversations, messages } from "@/lib/db/schema";
 import { sendPushToUser } from "@/lib/push/send";
+import { stripControlTags } from "@/lib/chat/sanitize";
 
 /**
  * Deliver a proactive message into the main conversation AND push it — so a
@@ -13,7 +14,7 @@ export async function deliverProactive(
   assistantId: string,
   opts: { text: string; pushTitle: string; meta?: Record<string, unknown> },
 ): Promise<boolean> {
-  const text = opts.text.trim();
+  const text = stripControlTags(opts.text);
   if (!text) return false;
   const [main] = await db
     .select({ id: conversations.id })

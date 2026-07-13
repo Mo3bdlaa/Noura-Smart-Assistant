@@ -1,11 +1,13 @@
 import { and, eq } from "drizzle-orm";
+import { formatInTimeZone } from "date-fns-tz";
 import { db } from "@/lib/db/client";
-import { assistants, conversations, messages, users, type Task } from "@/lib/db/schema";
+import { assistants, conversations, messages, taskCompletions, users, type Task } from "@/lib/db/schema";
 import { readMood } from "@/lib/mood/state";
 import { assembleSystem } from "@/lib/persona/assemble";
 import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
 import { sendPushToUser } from "@/lib/push/send";
+import { stripControlTags } from "@/lib/chat/sanitize";
 import { dueTasks, advanceTask } from "./store";
 
 /** Build the internal instruction that tells her what to proactively say. */
@@ -19,17 +21,29 @@ function instructionFor(task: Task, en: boolean): string {
   const details = task.instruction?.trim();
   if (task.kind === "nudge") {
     return en
-      ? `Proactively check in on the user warmly (you set this reminder): "${task.title}".`
-      : `اطمني على المستخدم من نفسك بحنية (إنتي اللي حطّيتي ده): "${task.title}".`;
+      ? `Proactively check in on the user warmly (you set this reminder): "${task.title}". One short message, no questions piling up.`
+      : `اطمني على المستخدم من نفسك (إنتي اللي حطّيتي ده): "${task.title}". رسالة واحدة قصيرة من غير أسئلة كتير.`;
   }
   // remind — include any details the user gave so the message is useful.
   return en
-    ? `Proactively remind the user now, warmly, about: "${task.title}".${
+    ? `Proactively remind the user now, briefly and naturally, about: "${task.title}".${
         details ? ` Include these details: ${details}.` : ""
-      }`
-    : `فكّري المستخدم دلوقتي بحنية بـ: "${task.title}".${
+      } One short message. Do NOT emit any control tags.`
+    : `فكّري المستخدم دلوقتي باختصار وبطبيعية بـ: "${task.title}".${
         details ? ` ولازم تقولي التفاصيل دي: ${details}.` : ""
-      }`;
+      } رسالة واحدة قصيرة، ومن غير أي تاجات.`;
+}
+
+/** Is this recurring task already checked off for the user's local day? */
+async function completedToday(task: Task, tz: string, now: Date): Promise<boolean> {
+  if (task.recurrence === "once") return false; // one-offs deactivate when done
+  const day = formatInTimeZone(now, tz || "Africa/Cairo", "yyyy-MM-dd");
+  const [row] = await db
+    .select({ id: taskCompletions.id })
+    .from(taskCompletions)
+    .where(and(eq(taskCompletions.taskId, task.id), eq(taskCompletions.day, day)))
+    .limit(1);
+  return !!row;
 }
 
 async function runTask(task: Task): Promise<void> {
@@ -40,6 +54,11 @@ async function runTask(task: Task): Promise<void> {
     .where(eq(assistants.id, task.assistantId))
     .limit(1);
   if (!user || !assistant) return;
+
+  // Already done today (user checked it off) → don't nag about it again.
+  if ((task.kind === "remind" || task.kind === "nudge") && (await completedToday(task, user.timezone, new Date()))) {
+    return;
+  }
 
   // Deliver into the conversation the task was set in; fall back to main.
   let targetConversationId: string | null = null;
@@ -68,6 +87,12 @@ async function runTask(task: Task): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     dials: assistant.persona as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    archetype: assistant.archetype as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    gender: assistant.gender as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    language: assistant.language as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canon: (assistant.canon as any) ?? [],
     mood,
     memories: [],
@@ -87,19 +112,21 @@ async function runTask(task: Task): Promise<void> {
   } catch {
     text = "";
   }
-  if (!text.trim()) return; // don't post empties / quota failures
+  // Proactive messages never execute capture tags — strip anything the model emitted.
+  text = stripControlTags(text);
+  if (!text) return; // don't post empties / quota failures
 
   await db.insert(messages).values({
     conversationId: targetConversationId,
     userId: task.userId,
     role: "assistant",
-    content: text.trim(),
+    content: text,
     meta: { proactive: true, taskId: task.id, reminder: task.kind === "remind" },
   });
 
   await sendPushToUser(task.userId, {
     title: assistant.name,
-    body: text.trim().replace(/\s+/g, " ").slice(0, 120),
+    body: text.replace(/\s+/g, " ").slice(0, 120),
     url: "/chat",
   });
 }
