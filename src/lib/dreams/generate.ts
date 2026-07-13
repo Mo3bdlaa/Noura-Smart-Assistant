@@ -6,6 +6,7 @@ import { assembleSystem } from "@/lib/persona/assemble";
 import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
 import { deliverProactive } from "@/lib/proactive/deliver";
+import { unansweredProactiveCount } from "@/lib/proactive/backoff";
 
 // Only start missing them after this much silence, and don't pester: at most one
 // pending "dream" waiting to be surfaced at a time.
@@ -37,6 +38,10 @@ export async function generateDreamInitiatives(
   if (!assistant.lastSeenAt) return false;
   const sinceSeen = now.getTime() - new Date(assistant.lastSeenAt).getTime();
   if (sinceSeen < ABSENCE_MS) return false;
+
+  // If several of her messages are already sitting unanswered, she goes quiet
+  // instead of piling on "I miss you"s — dignity over clinginess.
+  if (opts.notify && (await unansweredProactiveCount(assistantId)) >= 3) return false;
 
   // Already have a fresh pending dream? Don't stack another.
   const [recentDream] = await db

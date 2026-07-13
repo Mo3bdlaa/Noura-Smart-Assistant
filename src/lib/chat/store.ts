@@ -119,7 +119,7 @@ export async function moveMessages(ctx: TenantContext, ids: string[], targetConv
 }
 
 /** Recent turns of a conversation (oldest→newest), excluding system messages. */
-export async function recentHistory(conversationId: string, limit = 20): Promise<ChatTurn[]> {
+export async function recentHistory(conversationId: string, limit = 32): Promise<ChatTurn[]> {
   const rows = await db
     .select({ role: messages.role, content: messages.content })
     .from(messages)

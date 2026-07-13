@@ -9,6 +9,7 @@ import { timeContext } from "@/lib/time/awareness";
 import { sendPushToUser } from "@/lib/push/send";
 import { secretaryContext } from "@/lib/secretary/items";
 import { stripControlTags } from "@/lib/chat/sanitize";
+import { unansweredProactiveCount } from "@/lib/proactive/backoff";
 
 const MIN_GAP_MS = 5 * 3_600_000; // at least 5h between her unprompted messages
 const DAILY_CAP = 3; // never more than this many a day
@@ -42,10 +43,16 @@ export async function generateProactiveOutreach(
   const sinceSeen = now.getTime() - new Date(assistant.lastSeenAt).getTime();
   if (sinceSeen < PRESENT_MS) return false; // they're around — no need to text first
 
+  // Social self-respect: every unanswered proactive message doubles the wait
+  // (5h → 10h → 20h → 40h → 80h) — like a real person who stops texting first
+  // when ignored, and warms right back up when he replies (count resets).
+  const ignored = await unansweredProactiveCount(assistantId);
+  const requiredGap = MIN_GAP_MS * Math.pow(2, Math.min(ignored, 4));
   const lastProactive = assistant.lastProactiveAt ? new Date(assistant.lastProactiveAt).getTime() : 0;
-  if (now.getTime() - lastProactive < MIN_GAP_MS) return false;
+  if (now.getTime() - lastProactive < requiredGap) return false;
 
-  // Daily cap (count her proactive messages since local midnight).
+  // Daily cap (count her proactive messages since local midnight) — tighter when ignored.
+  const dailyCap = ignored >= 2 ? 1 : DAILY_CAP;
   const localDate = formatInTimeZone(now, tz, "yyyy-MM-dd");
   const dayStart = fromZonedTime(`${localDate}T00:00:00`, tz);
   const [cnt] = await db
@@ -60,7 +67,7 @@ export async function generateProactiveOutreach(
         sql`${messages.meta}->>'proactive' = 'true'`,
       ),
     );
-  if (Number(cnt?.n ?? 0) >= DAILY_CAP) return false;
+  if (Number(cnt?.n ?? 0) >= dailyCap) return false;
 
   // Decide what kind of reach-out fits.
   const talkedToday = new Date(assistant.lastSeenAt).getTime() >= dayStart.getTime();

@@ -56,8 +56,8 @@ export async function secretaryContext(assistantId: string): Promise<string | nu
     .where(eq(secretaryItems.assistantId, assistantId))
     .orderBy(desc(secretaryItems.createdAt))
     .limit(60);
-  const todos = rows.filter((r) => r.kind === "todo" && !r.done).slice(0, 20);
-  const notes = rows.filter((r) => r.kind === "note").slice(0, 15);
+  const todos = rows.filter((r) => r.kind === "todo" && !r.done).slice(0, 12);
+  const notes = rows.filter((r) => r.kind === "note").slice(0, 8);
   if (todos.length === 0 && notes.length === 0) return null;
   const parts: string[] = [];
   if (todos.length) parts.push("مهام مفتوحة عليه:\n" + todos.map((t) => `- ${t.content}`).join("\n"));
