@@ -652,6 +652,7 @@ export function ChatWindow({
                   selected={selected.has(m.id)}
                   onToggleSelect={() => toggleSelect(m.id)}
                   onMarkTask={() => markTaskDone(m.id, m.taskId)}
+                  ephemeral={conversationType === "incognito"}
                 />
               ),
             )
@@ -846,6 +847,7 @@ function Bubble({
   selected,
   onToggleSelect,
   onMarkTask,
+  ephemeral,
 }: {
   msg: Msg;
   assistantName: string;
@@ -863,6 +865,8 @@ function Bubble({
   selected?: boolean;
   onToggleSelect?: () => void;
   onMarkTask?: () => void;
+  /** incognito: voice audio must not be cached server-side */
+  ephemeral?: boolean;
 }) {
   const { t } = useI18n();
   const isUser = msg.role === "user";
@@ -940,7 +944,7 @@ function Bubble({
         {isEmptyDraft ? (
           <TypingDots />
         ) : msg.voice && msg.content ? (
-          <VoiceNote text={msg.content} />
+          <VoiceNote text={msg.content} ephemeral={ephemeral} />
         ) : !msg.content ? null : (
           (parts.length ? parts : [msg.content]).map((p, i) => (
             <div

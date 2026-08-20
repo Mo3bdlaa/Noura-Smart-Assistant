@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/auth/guard";
 import { getApiKeys, markCooling, pickKey } from "@/lib/llm/keys";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
@@ -13,12 +14,16 @@ const STT_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
  * Arabic far better than the browser's SpeechRecognition). Returns { text }.
  */
 export async function POST(req: Request) {
+  let user;
   try {
-    await requireUser();
+    user = await requireUser();
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.code }, { status: err.status });
     throw err;
   }
+
+  const rl = rateLimit(`stt:${user.id}`, LIMITS.stt.limit, LIMITS.stt.windowMs);
+  if (!rl.ok) return NextResponse.json({ text: "" }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
 
   const body = (await req.json().catch(() => null)) as { audio?: string; mimeType?: string } | null;
   const audio = body?.audio ?? "";

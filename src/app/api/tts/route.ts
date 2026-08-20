@@ -3,6 +3,7 @@ import { AuthError, requireUser } from "@/lib/auth/guard";
 import { tenantForUser } from "@/lib/db/tenant";
 import { GEMINI_VOICE_NAMES } from "@/lib/voice/gemini-voices";
 import { getOrSynth, resolveGeminiVoice } from "@/lib/voice/tts";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
@@ -20,7 +21,14 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  const body = (await req.json().catch(() => null)) as { text?: string; voice?: string } | null;
+  const rl = rateLimit(`tts:${user.id}`, LIMITS.tts.limit, LIMITS.tts.windowMs);
+  if (!rl.ok) return new NextResponse(null, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
+
+  const body = (await req.json().catch(() => null)) as {
+    text?: string;
+    voice?: string;
+    ephemeral?: boolean;
+  } | null;
   const text = (body?.text ?? "").trim();
   if (!text) return new NextResponse(null, { status: 204 });
 
@@ -35,7 +43,8 @@ export async function POST(req: Request) {
     }
   }
 
-  const audio = await getOrSynth(text, voice);
+  // Incognito playback is never persisted to the shared cache.
+  const audio = await getOrSynth(text, voice, { cache: !body?.ephemeral });
   if (!audio) return new NextResponse(null, { status: 204 });
   return new NextResponse(new Uint8Array(audio.bytes), {
     headers: { "Content-Type": audio.mime, "Cache-Control": "private, max-age=86400" },

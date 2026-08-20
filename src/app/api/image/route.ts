@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/auth/guard";
 import { getSetting } from "@/lib/settings";
 import { upstreamImageUrl } from "@/lib/image/generate";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -12,12 +13,16 @@ export const maxDuration = 60;
  * generation fails or is rate-limited, so a message image never breaks.
  */
 export async function GET(req: Request) {
+  let user;
   try {
-    await requireUser();
+    user = await requireUser();
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.code }, { status: err.status });
     throw err;
   }
+
+  const rl = rateLimit(`image:${user.id}`, LIMITS.image.limit, LIMITS.image.windowMs);
+  if (!rl.ok) return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
 
   const url = new URL(req.url);
   const prompt = url.searchParams.get("p") ?? "";

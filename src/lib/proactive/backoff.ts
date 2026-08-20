@@ -28,6 +28,12 @@ export async function unansweredProactiveCount(assistantId: string): Promise<num
     eq(messages.conversationId, main.id),
     eq(messages.role, "assistant" as const),
     sql`${messages.meta}->>'proactive' = 'true'`,
+    // Only HER OWN unprompted messages count as "ignored". Reminders the user
+    // explicitly asked for (tasks, dated reminders) must never throttle her —
+    // not replying to a meds ping isn't a social signal.
+    sql`${messages.meta}->>'taskId' is null`,
+    sql`coalesce(${messages.meta}->>'reminder','') <> 'true'`,
+    sql`coalesce(${messages.meta}->>'reminderFired','') <> 'true'`,
   ];
   if (lastUser) conds.push(gt(messages.createdAt, lastUser.at));
 

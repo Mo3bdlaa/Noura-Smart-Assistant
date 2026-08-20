@@ -17,7 +17,7 @@ const fmt = (s: number) => {
  * /api/tts (Gemini TTS), falling back to the browser voice. Shows real playback
  * progress; the text is kept as a revealable transcript.
  */
-export function VoiceNote({ text }: { text: string }) {
+export function VoiceNote({ text, ephemeral }: { text: string; ephemeral?: boolean }) {
   const { t } = useI18n();
   const [state, setState] = useState<"idle" | "loading" | "playing" | "paused">("idle");
   const [progress, setProgress] = useState(0); // 0..1
@@ -85,7 +85,7 @@ export function VoiceNote({ text }: { text: string }) {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: clean }),
+        body: JSON.stringify({ text: clean, ephemeral }),
       });
       if (res.ok && (res.headers.get("content-type") ?? "").includes("audio")) {
         const url = URL.createObjectURL(await res.blob());

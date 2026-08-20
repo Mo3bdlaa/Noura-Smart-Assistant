@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { assistants, ttsCache } from "@/lib/db/schema";
 import { getSetting } from "@/lib/settings";
@@ -48,8 +48,27 @@ export async function resolveGeminiVoice(assistantId: string): Promise<string> {
 }
 
 const cleanText = (t: string) => t.replace(/[*_#`>~]/g, "").trim().slice(0, 800);
+/** Hash the FULL text (not the truncated slice) so two long lines sharing their
+ *  first 800 chars can't collide onto the same cached audio. */
 const keyFor = (voice: string, text: string) =>
-  createHash("sha256").update(`${voice}|${cleanText(text)}`).digest("hex");
+  createHash("sha256").update(`${voice}|${text.trim()}`).digest("hex");
+
+// The cache lives in Postgres (base64 audio) — bound it so it can't grow forever.
+const CACHE_MAX_ROWS = 400;
+const CACHE_MAX_AGE_DAYS = 30;
+
+/** Trim the cache back to its bounds. Cheap, and only runs after a real synth. */
+async function pruneCache(): Promise<void> {
+  try {
+    await db.execute(sql`delete from tts_cache where created_at < now() - interval '${sql.raw(String(CACHE_MAX_AGE_DAYS))} days'`);
+    await db.execute(sql`
+      delete from tts_cache where key in (
+        select key from tts_cache order by created_at desc offset ${CACHE_MAX_ROWS}
+      )`);
+  } catch {
+    /* pruning is best-effort */
+  }
+}
 
 async function geminiSynth(text: string, voiceName: string): Promise<Audio | null> {
   const keys = await getApiKeys();
@@ -122,16 +141,23 @@ async function elevenSynth(text: string, voiceId: string): Promise<Audio | null>
  * generate once (Gemini, ElevenLabs fallback) and store it. Deterministic by
  * (voice, text), so every later play is instant and costs no quota.
  */
-export async function getOrSynth(text: string, geminiVoice: string): Promise<Audio | null> {
+export async function getOrSynth(
+  text: string,
+  geminiVoice: string,
+  opts: { cache?: boolean } = {},
+): Promise<Audio | null> {
+  const useCache = opts.cache !== false; // incognito passes false: leave no trace
   const clean = cleanText(text);
   if (!clean) return null;
-  const key = keyFor(geminiVoice, clean);
+  const key = keyFor(geminiVoice, text);
 
-  try {
-    const [hit] = await db.select().from(ttsCache).where(eq(ttsCache.key, key)).limit(1);
-    if (hit) return { mime: hit.mime, bytes: Buffer.from(hit.audio, "base64") };
-  } catch {
-    /* cache read failure → just synth */
+  if (useCache) {
+    try {
+      const [hit] = await db.select().from(ttsCache).where(eq(ttsCache.key, key)).limit(1);
+      if (hit) return { mime: hit.mime, bytes: Buffer.from(hit.audio, "base64") };
+    } catch {
+      /* cache read failure → just synth */
+    }
   }
 
   let out = await geminiSynth(clean, geminiVoice);
@@ -141,12 +167,14 @@ export async function getOrSynth(text: string, geminiVoice: string): Promise<Aud
     out = await elevenSynth(clean, elevenVoice);
   }
   if (!out) return null;
+  if (!useCache) return out;
 
   try {
     await db
       .insert(ttsCache)
       .values({ key, mime: out.mime, audio: out.bytes.toString("base64") })
       .onConflictDoNothing();
+    await pruneCache();
   } catch {
     /* caching is best-effort */
   }

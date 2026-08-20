@@ -34,6 +34,7 @@ import { getConversationSummary, maybeSummarize } from "@/lib/memory/summarize";
 import { addItem, markDoneByText, parseSecretaryTags, secretaryContext } from "@/lib/secretary/items";
 import { warmTTS } from "@/lib/voice/tts";
 import { hasVoiceTag, stripControlTags } from "@/lib/chat/sanitize";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import { buildSelfieUrl } from "@/lib/image/generate";
 import { generateTitle } from "@/lib/chat/title";
 import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
@@ -72,6 +73,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: err.code }, { status: err.status });
     }
     throw err;
+  }
+
+  // Cost guard: one account can't loop the shared LLM/TTS key pools dry.
+  const rl = rateLimit(`chat:${user.id}`, LIMITS.chat.limit, LIMITS.chat.windowMs);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "رسايل كتير أوي بسرعة. استنى شوية." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
@@ -124,14 +134,19 @@ export async function POST(req: Request) {
 
   // Memory retrieval needs embeddings; degrade gracefully (no recall) if it fails
   // so a turn never dies on a transient embedding error.
-  const safeRetrieve = retrieveMemories({
-    userId: ctx.userId,
-    assistantId: ctx.assistantId,
-    query: message,
-  }).catch((e) => {
-    console.error("memory retrieval failed", e);
-    return [];
-  });
+  // Incognito is a sandbox in BOTH directions: nothing is written to memory, and
+  // nothing real is recalled into it either.
+  const safeRetrieve =
+    conv.type === "incognito"
+      ? Promise.resolve([])
+      : retrieveMemories({
+          userId: ctx.userId,
+          assistantId: ctx.assistantId,
+          query: message,
+        }).catch((e) => {
+          console.error("memory retrieval failed", e);
+          return [];
+        });
 
   const [history, memories, mood, profile, summary] = await Promise.all([
     recentHistory(conversationId),
@@ -193,7 +208,8 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("drainJobs failed", e);
     }
-    if (warmText) {
+    // Pre-generate voice audio — but never persist incognito lines into the cache.
+    if (warmText && conv.type !== "incognito") {
       try {
         await warmTTS(ctx.assistantId, warmText);
       } catch (e) {

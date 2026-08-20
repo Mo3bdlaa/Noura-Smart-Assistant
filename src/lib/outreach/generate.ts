@@ -65,6 +65,10 @@ export async function generateProactiveOutreach(
         eq(messages.role, "assistant"),
         gte(messages.createdAt, dayStart),
         sql`${messages.meta}->>'proactive' = 'true'`,
+        // Her own outreach only — user-requested reminders don't eat this budget.
+        sql`${messages.meta}->>'taskId' is null`,
+        sql`coalesce(${messages.meta}->>'reminder','') <> 'true'`,
+        sql`coalesce(${messages.meta}->>'reminderFired','') <> 'true'`,
       ),
     );
   if (Number(cnt?.n ?? 0) >= dailyCap) return false;
