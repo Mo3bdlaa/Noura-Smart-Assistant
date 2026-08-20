@@ -37,13 +37,13 @@ import { hasVoiceTag, stripControlTags } from "@/lib/chat/sanitize";
 import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import { buildSelfieUrl } from "@/lib/image/generate";
 import { generateTitle } from "@/lib/chat/title";
-import { maybeUpdateProfile, getProfile } from "@/lib/insights/profile";
+import { maybeUpdateProfile, getProfile, summarizeReportForPrompt } from "@/lib/insights/profile";
 import { enqueueExtract, drainJobs } from "@/lib/jobs/worker";
 import { getLocale } from "@/lib/i18n";
 import { friendlyError } from "@/lib/llm/errors";
 import { formatInTimeZone } from "date-fns-tz";
 import { detectTasks } from "@/lib/tasks/detect";
-import { completeTaskByTitle, createTask } from "@/lib/tasks/store";
+import { completeTaskByTitle, createTask, hasSimilarOpenTask } from "@/lib/tasks/store";
 import { runDueTasks } from "@/lib/tasks/run";
 import { captureMood } from "@/lib/timeline/snapshot";
 import { touchLastSeen } from "@/lib/dreams/generate";
@@ -188,6 +188,8 @@ export async function POST(req: Request) {
     summary,
     secretary,
     userNotes: profile?.userNotes,
+    userRead:
+      conv.type === "incognito" ? null : summarizeReportForPrompt(profile?.report, null),
     appearance: assistant?.appearance ?? null,
     time: timeContext(user.timezone),
     userDisplayName: user.displayName,
@@ -389,12 +391,21 @@ export async function POST(req: Request) {
         if (conv.type !== "incognito") {
           try {
             const sec = parseSecretaryTags(full);
-            for (const c of sec.todos) await addItem(ctx!, "todo", c);
+            // A to-do she files is skipped when the same intent already became a
+            // scheduled task this turn — otherwise "ذكرني أكلم أحمد بكرة" lands twice
+            // (once from the task detector, once from her <todo:> tag).
+            for (const c of sec.todos) {
+              if (await hasSimilarOpenTask(ctx!, c)) continue;
+              await addItem(ctx!, "todo", c);
+            }
             for (const c of sec.notes) await addItem(ctx!, "note", c);
             const day = formatInTimeZone(new Date(), user!.timezone || "Africa/Cairo", "yyyy-MM-dd");
             for (const c of sec.dones) {
-              await markDoneByText(ctx!, c); // a captured to-do
-              await completeTaskByTitle(ctx!, c, day); // …or a scheduled reminder/task
+              // Close ONE thing per tag — a scheduled reminder first (it's the one
+              // that would keep nagging), else a captured to-do. Closing both from a
+              // single vague phrase used to complete unrelated items.
+              const closedTask = await completeTaskByTitle(ctx!, c, day);
+              if (!closedTask) await markDoneByText(ctx!, c);
             }
           } catch (e) {
             console.error("secretary capture failed", e);

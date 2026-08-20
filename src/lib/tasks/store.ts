@@ -179,3 +179,37 @@ export async function completeTaskByTitle(ctx: TenantContext, phrase: string, da
   }
   return true;
 }
+
+/** Meaningful words of a phrase (strips Arabic clitics + short/stop words). */
+const STOP = new Set([
+  "المستخدم","انا","أنا","خلصت","خلّصت","عملت","اخد","أخذ","اخذ","بتاع","بتاعي",
+  "اللي","على","علي","في","من","عن","مع","بكرة","النهاردة","لازم","عايز",
+]);
+export function keyWords(phrase: string): string[] {
+  return phrase
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/^(ال|و|ب|لل|ف)/, "").replace(/[^\p{L}\p{N}]/gu, "").trim())
+    .filter((w) => w.length >= 3 && !STOP.has(w));
+}
+
+/**
+ * Is there already an active scheduled task covering this phrase? Used to stop the
+ * same intent being stored twice (LLM task detection + her <todo:> capture).
+ */
+export async function hasSimilarOpenTask(ctx: TenantContext, phrase: string): Promise<boolean> {
+  const words = keyWords(phrase).slice(0, 4);
+  if (!words.length) return false;
+  const rows = await db
+    .select({ title: tasks.title })
+    .from(tasks)
+    .where(and(eq(tasks.userId, ctx.userId), eq(tasks.active, true)))
+    .limit(50);
+  if (!rows.length) return false;
+  return rows.some((r) => {
+    const t = r.title.toLowerCase();
+    const hits = words.filter((w) => t.includes(w)).length;
+    // Two shared keywords (or the only keyword there is) = same intent.
+    return hits >= Math.min(2, words.length);
+  });
+}

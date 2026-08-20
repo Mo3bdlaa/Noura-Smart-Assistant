@@ -1,6 +1,6 @@
 import { and, cosineDistance, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { memories, messages } from "@/lib/db/schema";
+import { assistants, memories, messages, type CanonEntry } from "@/lib/db/schema";
 import { embed } from "@/lib/llm/embeddings";
 
 /**
@@ -38,7 +38,13 @@ export async function forgetTopic(opts: {
     .limit(50);
 
   const hits = matches.filter((m) => Number(m.distance) <= threshold);
-  if (!hits.length) return { forgotten: 0 };
+
+  // Canon (her self-facts) is separate from embedded memories — forgetting a topic
+  // has to clear those too, or she keeps asserting facts about something the user
+  // asked her to forget.
+  const droppedCanon = await forgetCanonTopic(opts.assistantId, opts.topic);
+
+  if (!hits.length) return { forgotten: droppedCanon };
 
   const sourceIds = [...new Set(hits.map((h) => h.sourceMessageId).filter(Boolean))] as string[];
   const memIds = hits.map((h) => h.id);
@@ -50,5 +56,35 @@ export async function forgetTopic(opts: {
   }
   await db.delete(memories).where(inArray(memories.id, memIds));
 
-  return { forgotten: hits.length };
+  return { forgotten: hits.length + droppedCanon };
+}
+
+/** Drop self-facts whose text mentions any meaningful word of the topic. */
+async function forgetCanonTopic(assistantId: string, topic: string): Promise<number> {
+  const words = topic
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/^(ال|و|ب|لل)/, "").trim())
+    .filter((w) => w.length >= 3);
+  if (!words.length) return 0;
+  try {
+    const [row] = await db
+      .select({ canon: assistants.canon })
+      .from(assistants)
+      .where(eq(assistants.id, assistantId))
+      .limit(1);
+    const canon = (row?.canon as CanonEntry[] | undefined) ?? [];
+    if (!canon.length) return 0;
+    const kept = canon.filter((c) => {
+      const fact = (c.fact ?? "").toLowerCase();
+      return !words.some((w) => fact.includes(w));
+    });
+    const dropped = canon.length - kept.length;
+    if (dropped > 0) {
+      await db.update(assistants).set({ canon: kept }).where(eq(assistants.id, assistantId));
+    }
+    return dropped;
+  } catch {
+    return 0;
+  }
 }

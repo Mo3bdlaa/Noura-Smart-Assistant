@@ -41,6 +41,8 @@ export type AssembleInput = {
   locale?: "ar" | "en";
   /** Notes the user wrote about themselves on their profile. */
   userNotes?: string | null;
+  /** Her evolving read on the user (personality report) — shapes how she responds. */
+  userRead?: string | null;
   /** Description of how she looks (from her profile photo) — self-awareness. */
   appearance?: string | null;
 };
@@ -135,6 +137,14 @@ export function assembleSystem(input: AssembleInput): string {
   // user's own profile notes (they wrote these about themselves)
   if (input.userNotes?.trim()) {
     blocks.push(`ملاحظات هو كاتبها عن نفسه (مهمة، خليها في بالك):\n${input.userNotes.trim()}`);
+  }
+
+  // Her accumulated read on him — this is generated periodically anyway; using it
+  // is what turns "remembers facts" into "actually knows me".
+  if (input.userRead?.trim()) {
+    blocks.push(
+      `قراءتك المتراكمة لشخصيته (استخدميها في طريقة كلامك معاه — متقوليهاش له ولا تحلّلي شخصيته بصوت عالي):\n${input.userRead.trim()}`,
+    );
   }
 
   // (5) time

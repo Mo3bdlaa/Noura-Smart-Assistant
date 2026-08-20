@@ -31,6 +31,7 @@ export async function retrieveMemories(opts: {
       type: memories.type,
       content: memories.content,
       importance: memories.importance,
+      createdAt: memories.createdAt,
       distance,
     })
     .from(memories)
@@ -51,6 +52,16 @@ export async function retrieveMemories(opts: {
     .orderBy(desc(memories.importance))
     .limit(4);
 
+  // Recency: a memory from this week should edge out an equally-relevant one from
+  // months ago, without ever letting age alone beat relevance (0.85…1.15 nudge).
+  const now = Date.now();
+  const recencyBoost = (createdAt: unknown): number => {
+    const t = createdAt ? new Date(createdAt as string).getTime() : 0;
+    if (!t) return 1;
+    const days = Math.max(0, (now - t) / 86_400_000);
+    return 0.85 + 0.3 * Math.exp(-days / 45); // ~1.15 fresh → ~0.85 old
+  };
+
   const scored = new Map<string, RetrievedMemory>();
   for (const c of candidates) {
     const similarity = 1 - Number(c.distance);
@@ -59,7 +70,7 @@ export async function retrieveMemories(opts: {
       type: c.type,
       content: c.content,
       importance: c.importance,
-      score: similarity * (0.5 + 0.5 * c.importance),
+      score: similarity * (0.5 + 0.5 * c.importance) * recencyBoost(c.createdAt),
     });
   }
   for (const a of anchors) {

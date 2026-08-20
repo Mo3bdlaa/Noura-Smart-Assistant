@@ -126,3 +126,23 @@ export async function maybeUpdateProfile(
   if (!existing && count < 3) return;
   await regenerateProfile(userId, assistantId, locale);
 }
+
+/**
+ * Condense the personality report into a few prompt-sized lines. This report is
+ * regenerated periodically anyway; feeding it back is what makes her adapt to the
+ * person instead of just recalling isolated facts.
+ */
+export function summarizeReportForPrompt(report: unknown, notes?: string | null): string | null {
+  const r = (report ?? null) as ProfileReport | null;
+  if (!r) return null;
+  const parts: string[] = [];
+  if (r.summary) parts.push(r.summary.trim());
+  if (r.communication_style) parts.push(`أسلوبه في الكلام: ${r.communication_style.trim()}`);
+  if (r.traits?.length) parts.push(`سماته: ${r.traits.slice(0, 5).map((t) => t.name).join("، ")}`);
+  if (r.interests?.length) parts.push(`بيهتم بـ: ${r.interests.slice(0, 6).join("، ")}`);
+  if (r.emotional_patterns) parts.push(`نمطه العاطفي: ${r.emotional_patterns.trim()}`);
+  if (r.how_to_support) parts.push(`إزاي تسانديه: ${r.how_to_support.trim()}`);
+  if (notes?.trim()) parts.push(`ملاحظاته عن نفسه: ${notes.trim()}`);
+  const text = parts.filter(Boolean).join("\n").slice(0, 900);
+  return text || null;
+}
