@@ -5,7 +5,7 @@ import { assistants, ttsCache } from "@/lib/db/schema";
 import { getSetting } from "@/lib/settings";
 import { getApiKeys, markCooling, pickKey } from "@/lib/llm/keys";
 import { getVoiceKeys, markVoiceCooling, pickVoiceKey } from "@/lib/voice/keys";
-import { DEFAULT_GEMINI_VOICE, GEMINI_VOICE_NAMES } from "@/lib/voice/gemini-voices";
+import { DEFAULT_GEMINI_VOICE, GEMINI_VOICE_NAMES, defaultVoiceFor } from "@/lib/voice/gemini-voices";
 
 const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const DEFAULT_ELEVEN_VOICE = "21m00Tcm4TlvDq8ikWAM";
@@ -31,16 +31,17 @@ function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
   return Buffer.concat([h, pcm]);
 }
 
-/** The Gemini voice for an assistant (its own, else default). */
+/** The Gemini voice for an assistant (its own, else a gender-appropriate default). */
 export async function resolveGeminiVoice(assistantId: string): Promise<string> {
   try {
     const [a] = await db
-      .select({ voiceId: assistants.voiceId })
+      .select({ voiceId: assistants.voiceId, gender: assistants.gender })
       .from(assistants)
       .where(eq(assistants.id, assistantId))
       .limit(1);
     const v = a?.voiceId ?? null;
     if (v && GEMINI_VOICE_NAMES.has(v)) return v;
+    return defaultVoiceFor(a?.gender);
   } catch {
     /* fall back */
   }
@@ -74,7 +75,7 @@ async function geminiSynth(text: string, voiceName: string): Promise<Audio | nul
   const keys = await getApiKeys();
   if (keys.length === 0) return null;
   const body = JSON.stringify({
-    contents: [{ parts: [{ text: `قوليها بصوت دافي وحنين وطبيعي: ${text}` }] }],
+    contents: [{ parts: [{ text: `Say this naturally, in a warm conversational tone: ${text}` }] }],
     generationConfig: {
       responseModalities: ["AUDIO"],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },

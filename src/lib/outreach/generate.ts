@@ -10,6 +10,7 @@ import { sendPushToUser } from "@/lib/push/send";
 import { secretaryContext } from "@/lib/secretary/items";
 import { stripControlTags } from "@/lib/chat/sanitize";
 import { unansweredProactiveCount } from "@/lib/proactive/backoff";
+import { personaInput } from "@/lib/persona/context";
 
 const MIN_GAP_MS = 5 * 3_600_000; // at least 5h between her unprompted messages
 const DAILY_CAP = 3; // never more than this many a day
@@ -94,26 +95,17 @@ export async function generateProactiveOutreach(
   const isHelper = assistant.archetype === "secretary" || assistant.archetype === "progressive";
   // For a morning brief, pull her open to-dos so she can run them down.
   const secretary = isHelper && kind === "morning" ? await secretaryContext(assistantId).catch(() => null) : null;
-  const system = assembleSystem({
-    assistantName: assistant.name,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dials: assistant.persona as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    archetype: assistant.archetype as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    gender: assistant.gender as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    language: assistant.language as any,
-    canon: (assistant.canon as CanonEntry[]) ?? [],
-    mood,
-    memories: [],
-    secretary,
-    time: timeContext(tz),
-    userDisplayName: user.displayName,
-    appearance: assistant.appearance,
-    conversationType: "main",
-    locale: user.locale,
-  });
+  const system = assembleSystem(
+    personaInput(assistant, {
+      mood,
+      memories: [],
+      secretary,
+      time: timeContext(tz),
+      userDisplayName: user.displayName,
+      conversationType: "main",
+      locale: user.locale,
+    }),
+  );
 
   const days = Math.max(1, Math.floor(sinceSeen / 86_400_000));
   const morningPrompt = secretary
@@ -123,17 +115,27 @@ export async function generateProactiveOutreach(
     : en
       ? "Text him first now: a short, warm good-morning in your own words. One line, natural, no preamble."
       : "ابعتي له الأول دلوقتي: صباح خير قصير ودافي بطريقتك. سطر واحد طبيعي من غير مقدمات.";
+  // A secretary reaches out professionally — it doesn't "miss" you or pine.
+  const romantic = assistant.archetype !== "secretary";
   const prompt = en
     ? kind === "morning"
       ? morningPrompt
       : kind === "miss"
-        ? `He's been away ~${days} day(s). Text him first: a short line that you missed him, warm and a little vulnerable. One line, no preamble.`
-        : "Text him first now: a short, natural check-in (what's he up to / thinking of him). One line, no preamble."
+        ? romantic
+          ? `They've been away ~${days} day(s). Text them first: a short line that you missed them, warm and a little vulnerable. One line, no preamble.`
+          : `They haven't checked in for ~${days} day(s). Text them first: one short, friendly professional line noting it and offering to help pick things up. No romance, no preamble.`
+        : romantic
+          ? "Text them first now: a short, natural check-in (what are they up to / thinking of them). One line, no preamble."
+          : "Text them first now: one short, useful check-in — anything they want handled today? Professional and light, no preamble."
     : kind === "morning"
       ? morningPrompt
       : kind === "miss"
-        ? `بقاله ~${days} يوم مكلّمكيش. ابعتي له الأول: سطر قصير إنه وحشك، بحنية وشوية ضعف. سطر واحد من غير مقدمات.`
-        : "ابعتي له الأول دلوقتي: اطمني عليه أو قوليله إنك بتفكري فيه، حاجة قصيرة وطبيعية. سطر واحد من غير مقدمات.";
+        ? romantic
+          ? `بقاله ~${days} يوم مكلّمكيش. ابعتي له الأول: سطر قصير إنه وحشك، بحنية وشوية ضعف. سطر واحد من غير مقدمات.`
+          : `بقاله ~${days} يوم مطلّش. ابعتي له الأول: سطر واحد قصير ومهني وودّي تعلّقي فيه على غيابه وتعرضي تكمّلوا شغلكم — من غير رومانسية ولا مقدمات.`
+        : romantic
+          ? "ابعتي له الأول دلوقتي: اطمني عليه أو قوليله إنك بتفكري فيه، حاجة قصيرة وطبيعية. سطر واحد من غير مقدمات."
+          : "ابعتي له الأول دلوقتي: سطر واحد مفيد — فيه حاجة عايز أظبطهاله النهاردة؟ مهنية وخفيفة من غير مقدمات.";
 
   let text = "";
   try {

@@ -326,7 +326,7 @@ export async function POST(req: Request) {
             resolvedPhoto = await pickAssistantPhoto(ctx!.assistantId, photoTag);
             // No uploaded photo? Generate a selfie from her appearance (free, no key).
             if (!resolvedPhoto && assistant?.appearance) {
-              resolvedPhoto = buildSelfieUrl(assistant.appearance, photoTag, ctx!.assistantId);
+              resolvedPhoto = buildSelfieUrl(assistant.appearance, photoTag, ctx!.assistantId, assistant.gender);
             }
           } catch {
             /* ignore photo resolution errors */

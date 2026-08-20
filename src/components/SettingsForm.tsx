@@ -9,7 +9,7 @@ import { Input, Textarea, Field } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { ApiKeyManager } from "@/components/ApiKeyManager";
-import { GEMINI_VOICE_OPTIONS, DEFAULT_GEMINI_VOICE } from "@/lib/voice/gemini-voices";
+import { voicesFor, defaultVoiceFor } from "@/lib/voice/gemini-voices";
 import { LANGUAGE_OPTIONS } from "@/lib/persona/languages";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -79,7 +79,7 @@ export function SettingsForm({
   async function previewVoice() {
     setPreviewing(true);
     try {
-      const voice = profile.voiceId || DEFAULT_GEMINI_VOICE;
+      const voice = profile.voiceId || defaultVoiceFor(profile.gender);
       const sample = t(
         `أهلاً، أنا ${profile.assistantName || "نورا"}. سعيدة إني بكلمك بصوتي.`,
         `Hi, I'm ${profile.assistantName || "Noura"}. Happy to talk to you in my voice.`,
@@ -361,11 +361,11 @@ export function SettingsForm({
             <Field label={t("صوتها", "Her voice")} hint={t("اختار وادوس اسمع لتجربة الصوت", "pick one and tap listen to hear it")}>
               <div className="flex items-center gap-2">
                 <select
-                  value={profile.voiceId || DEFAULT_GEMINI_VOICE}
+                  value={profile.voiceId || defaultVoiceFor(profile.gender)}
                   onChange={(e) => setProfile((p) => ({ ...p, voiceId: e.target.value }))}
                   className="flex-1 h-12 rounded-xl bg-bg border border-border px-3 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-ring/40 transition-theme"
                 >
-                  {GEMINI_VOICE_OPTIONS.map((v) => (
+                  {voicesFor(profile.gender).map((v) => (
                     <option key={v.name} value={v.name}>
                       {v.name} — {t(v.ar, v.en)}
                     </option>

@@ -114,8 +114,10 @@ export function assembleSystem(input: AssembleInput): string {
     );
   }
 
-  // (2) dynamic mood/relationship snapshot
-  blocks.push(`حالتك دلوقتي: ${describeMood(input.mood)}`);
+  // (2) dynamic mood/relationship snapshot — phrased for her gender + archetype
+  blocks.push(
+    `حالتك دلوقتي: ${describeMood(input.mood, { gender: input.gender, archetype: input.archetype })}`,
+  );
 
   // (3a) rolling recap of earlier turns (continuity in long chats)
   if (input.summary?.trim()) {

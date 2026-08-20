@@ -21,6 +21,8 @@ export function AppShell({
   mood,
   moodLabel,
   moodStats,
+  assistantArchetype,
+  assistantGender,
   isAdmin,
   conversations,
   children,
@@ -30,6 +32,8 @@ export function AppShell({
   mood: MoodKind;
   moodLabel: string;
   moodStats: MoodStats;
+  assistantArchetype?: string | null;
+  assistantGender?: string | null;
   isAdmin: boolean;
   conversations: Conv[];
   children: React.ReactNode;
@@ -46,6 +50,8 @@ export function AppShell({
           mood={mood}
           moodLabel={moodLabel}
           moodStats={moodStats}
+          assistantArchetype={assistantArchetype}
+          assistantGender={assistantGender}
           isAdmin={isAdmin}
           conversations={conversations}
         />
@@ -72,6 +78,8 @@ export function AppShell({
             mood={mood}
             moodLabel={moodLabel}
             moodStats={moodStats}
+          assistantArchetype={assistantArchetype}
+          assistantGender={assistantGender}
             isAdmin={isAdmin}
             conversations={conversations}
             onNavigate={() => setOpen(false)}
@@ -96,7 +104,7 @@ export function AppShell({
                 <Link href="/profile" className="block font-bold text-ink leading-tight truncate">
                   {assistantName}
                 </Link>
-                <MoodStatus label={moodLabel} stats={moodStats} className="text-[11px]" />
+                <MoodStatus label={moodLabel} stats={moodStats} className="text-[11px]" archetype={assistantArchetype} gender={assistantGender} />
               </div>
             </div>
           </div>

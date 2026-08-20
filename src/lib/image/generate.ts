@@ -6,12 +6,16 @@
  *
  * Pluggable: swap the upstream in /api/image for Cloudflare/HF/etc. later.
  */
-export function selfiePrompt(appearance: string, scene?: string | null): string | null {
+export function selfiePrompt(
+  appearance: string,
+  scene?: string | null,
+  gender?: string | null,
+): string | null {
   const look = (appearance ?? "").trim();
   if (look.length < 8) return null; // need a real description to stay on-character
   return [
     look,
-    "a casual phone selfie of her",
+    `a casual phone selfie of ${gender === "male" ? "him" : "her"}`,
     scene?.trim() || "",
     "natural realistic photo, soft warm lighting, cozy, candid",
   ]
@@ -38,8 +42,9 @@ export function buildSelfieUrl(
   appearance: string,
   scene?: string | null,
   seedKey?: string | null,
+  gender?: string | null,
 ): string | null {
-  const prompt = selfiePrompt(appearance, scene);
+  const prompt = selfiePrompt(appearance, scene, gender);
   if (!prompt) return null;
   const seed = seedKey ? stableSeed(seedKey) : Math.floor(Math.random() * 1_000_000);
   return `/api/image?p=${encodeURIComponent(prompt)}&s=${seed}`;

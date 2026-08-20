@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
-import { assistants, messages, type CanonEntry } from "@/lib/db/schema";
+import { assistants, messages } from "@/lib/db/schema";
 import { AuthError, requireTenant } from "@/lib/auth/guard";
 import { streamChat } from "@/lib/llm/chat";
 import { assembleSystem } from "@/lib/persona/assemble";
+import { personaInput } from "@/lib/persona/context";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 import { readMood } from "@/lib/mood/state";
 import { timeContext } from "@/lib/time/awareness";
+import { getConversationSummary } from "@/lib/memory/summarize";
+import { secretaryContext } from "@/lib/secretary/items";
 import { getConversation, recentHistory, saveMessage } from "@/lib/chat/store";
 import { parseLeadTags, couldBeLeadTag } from "@/lib/chat/react-tag";
 import { getLocale } from "@/lib/i18n";
@@ -49,7 +52,15 @@ export async function POST(req: Request) {
   const images = (lastUser.meta as { images?: string[] } | null)?.images;
 
   const [assistant] = await db
-    .select({ name: assistants.name, persona: assistants.persona, canon: assistants.canon, appearance: assistants.appearance })
+    .select({
+      name: assistants.name,
+      persona: assistants.persona,
+      canon: assistants.canon,
+      appearance: assistants.appearance,
+      language: assistants.language,
+      archetype: assistants.archetype,
+      gender: assistants.gender,
+    })
     .from(assistants)
     .where(eq(assistants.id, ctx.assistantId))
     .limit(1);
@@ -60,11 +71,17 @@ export async function POST(req: Request) {
     query: lastUser.content,
   }).catch(() => []);
 
-  const [rawHistory, memories, mood, locale] = await Promise.all([
+  const [rawHistory, memories, mood, locale, summary, secretary] = await Promise.all([
     recentHistory(conversationId),
     safeRetrieve,
     readMood(ctx.assistantId),
     getLocale(),
+    conv.type === "incognito"
+      ? Promise.resolve(null)
+      : getConversationSummary(conversationId).catch(() => null),
+    conv.type === "incognito"
+      ? Promise.resolve(null)
+      : secretaryContext(ctx.assistantId).catch(() => null),
   ]);
 
   // Drop trailing assistant turn(s) so the prompt ends at the user turn.
@@ -72,19 +89,21 @@ export async function POST(req: Request) {
   const history = [...rawHistory];
   while (history.length && history[history.length - 1]!.role === "assistant") history.pop();
 
-  const system = assembleSystem({
-    assistantName: assistant?.name ?? "نورا",
-    dials: (assistant?.persona as Record<string, number>) ?? undefined,
-    canon: (assistant?.canon as CanonEntry[]) ?? [],
-    mood,
-    memories,
-    appearance: assistant?.appearance ?? null,
-    time: timeContext(user.timezone),
-    userDisplayName: user.displayName,
-    conversationType: conv.type,
-    scenario: conv.scenario,
-    locale,
-  });
+  // Built from the shared identity so a regenerated reply is the SAME character
+  // (archetype/gender/language) as the original — not the defaults.
+  const system = assembleSystem(
+    personaInput(assistant!, {
+      mood,
+      memories,
+      summary,
+      secretary,
+      time: timeContext(user.timezone),
+      userDisplayName: user.displayName,
+      conversationType: conv.type,
+      scenario: conv.scenario,
+      locale,
+    }),
+  );
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

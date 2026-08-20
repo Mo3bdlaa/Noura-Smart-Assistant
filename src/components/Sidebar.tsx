@@ -38,6 +38,8 @@ export function Sidebar(props: {
   mood: MoodKind;
   moodLabel: string;
   moodStats: MoodStats;
+  assistantArchetype?: string | null;
+  assistantGender?: string | null;
   isAdmin: boolean;
   conversations: Conv[];
   onNavigate?: () => void;
@@ -114,7 +116,13 @@ export function Sidebar(props: {
           >
             {props.assistantName}
           </button>
-          <MoodStatus label={props.moodLabel} stats={props.moodStats} className="text-xs" />
+          <MoodStatus
+            label={props.moodLabel}
+            stats={props.moodStats}
+            className="text-xs"
+            archetype={props.assistantArchetype}
+            gender={props.assistantGender}
+          />
         </div>
       </div>
 

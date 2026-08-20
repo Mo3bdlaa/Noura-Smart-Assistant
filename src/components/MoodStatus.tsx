@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/components/i18n";
+import { progressiveStage, stageLabel } from "@/lib/persona/stages";
 import { cn } from "@/lib/cn";
 
 export type MoodStats = {
@@ -24,10 +25,14 @@ export function MoodStatus({
   label,
   stats,
   className,
+  archetype,
+  gender,
 }: {
   label: string;
   stats: MoodStats;
   className?: string;
+  archetype?: string | null;
+  gender?: string | null;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -84,6 +89,18 @@ export function MoodStatus({
               className="z-[100] w-64 max-w-[80vw] rounded-2xl bg-surface border border-border shadow-raised p-3.5 space-y-2.5 animate-fade-in"
             >
               <div className="text-xs font-semibold text-ink">{t("حالتها دلوقتي", "How she feels now")}</div>
+              {/* The earned relationship stage — the progression is otherwise invisible. */}
+              {archetype === "progressive" && (
+                <div className="flex items-center justify-between rounded-xl bg-accent-soft px-2.5 py-1.5">
+                  <span className="text-[11px] text-muted">{t("المرحلة", "Stage")}</span>
+                  <span className="text-[11px] font-semibold text-accent">
+                    {(() => {
+                      const [ar, en] = stageLabel(progressiveStage(stats.closeness), gender === "male" ? "male" : "female");
+                      return t(ar, en);
+                    })()}
+                  </span>
+                </div>
+              )}
               {rows.map((r) => {
                 const pct = Math.round(Math.max(0, Math.min(1, r.val)) * 100);
                 return (

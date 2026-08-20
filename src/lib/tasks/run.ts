@@ -8,7 +8,22 @@ import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
 import { sendPushToUser } from "@/lib/push/send";
 import { stripControlTags } from "@/lib/chat/sanitize";
+import { personaInput } from "@/lib/persona/context";
 import { dueTasks, advanceTask } from "./store";
+
+/**
+ * How late this run is, in minutes. On a once-daily cron a 9am reminder can be
+ * delivered hours late; she should own that instead of pretending it's on time.
+ */
+function latenessNote(task: Task, en: boolean, now: Date): string {
+  const lateMs = now.getTime() - new Date(task.nextRunAt).getTime();
+  const mins = Math.floor(lateMs / 60_000);
+  if (mins < 45) return ""; // close enough to "on time"
+  const hrs = Math.round(mins / 60);
+  return en
+    ? ` This is ~${hrs}h later than the scheduled time — briefly acknowledge you're late instead of pretending otherwise.`
+    : ` إنتي متأخرة حوالي ${hrs} ساعة عن الميعاد — اعترفي بالتأخير في كلمتين بدل ما تتجاهليه.`;
+}
 
 /** Build the internal instruction that tells her what to proactively say. */
 function instructionFor(task: Task, en: boolean): string {
@@ -82,27 +97,18 @@ async function runTask(task: Task): Promise<void> {
 
   const en = user.locale === "en";
   const mood = await readMood(task.assistantId);
-  const system = assembleSystem({
-    assistantName: assistant.name,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dials: assistant.persona as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    archetype: assistant.archetype as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    gender: assistant.gender as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    language: assistant.language as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    canon: (assistant.canon as any) ?? [],
-    mood,
-    memories: [],
-    time: timeContext(user.timezone),
-    userDisplayName: user.displayName,
-    conversationType: "main",
-    locale: user.locale,
-  });
+  const system = assembleSystem(
+    personaInput(assistant, {
+      mood,
+      memories: [],
+      time: timeContext(user.timezone),
+      userDisplayName: user.displayName,
+      conversationType: "main",
+      locale: user.locale,
+    }),
+  );
 
-  const prompt = instructionFor(task, en);
+  const prompt = instructionFor(task, en) + latenessNote(task, en, new Date());
   let text = "";
   try {
     text =

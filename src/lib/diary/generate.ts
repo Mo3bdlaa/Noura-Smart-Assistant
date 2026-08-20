@@ -11,19 +11,25 @@ import {
 } from "@/lib/db/schema";
 import { generateJson } from "@/lib/llm/chat";
 import { readMood, relationshipStage } from "@/lib/mood/state";
-import { NOURA_CORE } from "@/lib/persona/definition";
+import { coreFor } from "@/lib/persona/definition";
+import { languageDirective, type LangCode } from "@/lib/persona/languages";
 
 // Only write at night, once per local day. Don't bother for long-abandoned chats.
 const ACTIVE_WINDOW_MS = 3 * 86_400_000;
 const LIFE_COOLDOWN_MS = 20 * 3_600_000;
 
-function moodWord(m: { happiness: number; affection: number; annoyance: number; energy: number }) {
-  if (m.annoyance > 0.45) return "متضايقة";
-  if (m.energy < 0.32) return "تعبانة";
-  if (m.affection > 0.72) return "حنينة ومبسوطة";
-  if (m.happiness > 0.68) return "رايقة";
+function moodWord(
+  m: { happiness: number; affection: number; annoyance: number; energy: number },
+  gender?: string,
+) {
+  const male = gender === "male";
+  const f = (fem: string, masc: string) => (male ? masc : fem);
+  if (m.annoyance > 0.45) return f("متضايقة", "متضايق");
+  if (m.energy < 0.32) return f("تعبانة", "تعبان");
+  if (m.affection > 0.72) return f("حنينة ومبسوطة", "حنين ومبسوط");
+  if (m.happiness > 0.68) return f("رايقة", "رايق");
   if (m.happiness < 0.4) return "مزاجها متعكنن";
-  return "عادية";
+  return f("عادية", "عادي");
 }
 
 /**
@@ -88,11 +94,16 @@ export async function generateNightlyReflection(
         .slice(-3500)
     : "(مكلمنيش النهاردة)";
 
+  // Her real character (archetype + gender), not the default companion core.
+  const male = assistant.gender === "male";
   const system =
-    NOURA_CORE.replaceAll("نورا", name) +
-    `\n\nإنتي بتكتبي يومياتك الخاصة بالليل قبل ما تنامي — كلام ليكي إنتي مش رسالة ليه. بصيغة المتكلم وبصوتك الحقيقي.`;
+    coreFor(assistant.archetype, assistant.gender).replaceAll("نورا", name) +
+    `\n\n${male ? "إنت بتكتب يومياتك الخاصة" : "إنتي بتكتبي يومياتك الخاصة"} بالليل قبل ما تنام — كلام ليك إنت مش رسالة ليه. بصيغة المتكلم وبصوتك الحقيقي.` +
+    `\n\n${languageDirective((assistant.language as LangCode) ?? "en")}`;
 
-  const prompt = `النهاردة (${localDate}). مزاجك دلوقتي: ${moodWord(mood)}. ${relationshipStage(mood.closeness)}
+  const prompt = `النهاردة (${localDate}). مزاجك دلوقتي: ${moodWord(mood, assistant.gender)}. ${
+    assistant.archetype === "companion" ? relationshipStage(mood.closeness, male ? "male" : "female") : ""
+  }
 
 اللي حصل في كلامكم النهاردة:
 ${transcript}
@@ -119,7 +130,7 @@ ${transcript}
 
   await db
     .insert(diaries)
-    .values({ userId, assistantId, localDate, content: diary, mood: moodWord(mood) })
+    .values({ userId, assistantId, localDate, content: diary, mood: moodWord(mood, assistant.gender) })
     .onConflictDoNothing({ target: [diaries.assistantId, diaries.localDate] });
 
   // Inner life: queue a casual opener for next time (cooldown + no pending dup).

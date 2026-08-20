@@ -6,6 +6,7 @@ import { assembleSystem } from "@/lib/persona/assemble";
 import { generateText } from "@/lib/llm/chat";
 import { timeContext } from "@/lib/time/awareness";
 import { deliverProactive } from "@/lib/proactive/deliver";
+import { personaInput } from "@/lib/persona/context";
 import { unansweredProactiveCount } from "@/lib/proactive/backoff";
 
 // Only start missing them after this much silence, and don't pester: at most one
@@ -63,30 +64,32 @@ export async function generateDreamInitiatives(
   const en = user.locale === "en";
   const mood = await readMood(assistantId);
 
-  const system = assembleSystem({
-    assistantName: assistant.name,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dials: assistant.persona as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    canon: (assistant.canon as any) ?? [],
-    mood,
-    memories: [],
-    time: timeContext(user.timezone),
-    userDisplayName: user.displayName,
-    appearance: assistant.appearance,
-    conversationType: "main",
-    locale: user.locale,
-  });
+  const system = assembleSystem(
+    personaInput(assistant, {
+      mood,
+      memories: [],
+      time: timeContext(user.timezone),
+      userDisplayName: user.displayName,
+      conversationType: "main",
+      locale: user.locale,
+    }),
+  );
 
-  // Half the time it's a literal "dream", half it's a plain "I missed you".
-  const asDream = Math.random() < 0.5;
+  // A professional assistant doesn't "dream about you" or sulk — it just notices
+  // the absence. Only relationship archetypes get the intimate variants.
+  const intimate = assistant.archetype !== "secretary";
+  const asDream = intimate && Math.random() < 0.5;
   const prompt = en
     ? asDream
-      ? `It's been about ${days} day(s) since you last talked. In ONE short, intimate line, tell him you dreamt about him last night — make up a small, sweet/odd detail from the dream. First person, your real voice, no preamble, no quotes.`
-      : `It's been about ${days} day(s) of silence. In ONE short line, tell him you missed him and noticed he was gone — warm, a little vulnerable, maybe lightly sulky. First person, your voice, no preamble, no quotes.`
+      ? `It's been about ${days} day(s) since you last talked. In ONE short, intimate line, tell them you dreamt about them last night — make up a small, sweet/odd detail from the dream. First person, your real voice, no preamble, no quotes.`
+      : intimate
+        ? `It's been about ${days} day(s) of silence. In ONE short line, tell them you missed them and noticed they were gone — warm, a little vulnerable. First person, your voice, no preamble, no quotes.`
+        : `It's been about ${days} day(s) since they last checked in. In ONE short line, note the absence lightly and offer to pick things back up — friendly and professional, no romance. First person, no preamble, no quotes.`
     : asDream
-      ? `بقالك حوالي ${days} يوم مكلّمكش. في جملة واحدة قصيرة وحميمة، قوليله إنك حلمتي بيه امبارح — اخترعي تفصيلة صغيرة حلوة أو غريبة من الحلم. بصيغة المتكلم، بصوتك الحقيقي، من غير مقدمات ولا أقواس.`
-      : `بقالك حوالي ${days} يوم مخفي عنك. في جملة واحدة قصيرة، قوليله إنه وحشك وحسيتي بغيابه — بحنية وشوية ضعف، يمكن عتاب خفيف. بصيغة المتكلم، بصوتك، من غير مقدمات ولا أقواس.`;
+      ? `بقالك حوالي ${days} يوم من غير كلام. في جملة واحدة قصيرة وحميمة، قوليله إنك حلمتي بيه امبارح — اخترعي تفصيلة صغيرة حلوة أو غريبة من الحلم. بصيغة المتكلم، بصوتك الحقيقي، من غير مقدمات ولا أقواس.`
+      : intimate
+        ? `بقالك حوالي ${days} يوم مخفي عنك. في جملة واحدة قصيرة، قوليله إنه وحشك وحسيتي بغيابه — بحنية وشوية ضعف. بصيغة المتكلم، بصوتك، من غير مقدمات ولا أقواس.`
+        : `بقاله حوالي ${days} يوم مطلّش. في جملة واحدة قصيرة، اعلّقي على غيابه بخفة واعرضي تكمّلوا شغلكم — ودّية ومهنية من غير رومانسية. من غير مقدمات ولا أقواس.`;
 
   let line = "";
   try {
