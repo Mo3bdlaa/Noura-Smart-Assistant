@@ -8,35 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
+import { DOWNSCALE, downscaleImage } from "@/lib/image/downscale";
 
 type Photo = { id: string; url: string; tag: string | null };
-
-// Downscale to ≤768px JPEG so the repo stays light.
-function downscale(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const max = 768;
-        const scale = Math.min(1, max / Math.max(img.width, img.height));
-        const w = Math.round(img.width * scale);
-        const h = Math.round(img.height * scale);
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("no canvas"));
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      img.onerror = reject;
-      img.src = reader.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 /** Manage her photo album — the pictures she can "send" in chat. */
 export function PhotoRepo() {
@@ -67,7 +41,7 @@ export function PhotoRepo() {
     try {
       for (const file of Array.from(files).slice(0, 10)) {
         try {
-          const url = await downscale(file);
+          const url = await downscaleImage(file, DOWNSCALE.albumPhoto);
           const res = await fetch("/api/assistant/photos", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

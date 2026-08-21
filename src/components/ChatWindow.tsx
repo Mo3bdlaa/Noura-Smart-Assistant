@@ -31,6 +31,7 @@ import { useI18n } from "@/components/i18n";
 import { Markdown } from "@/components/Markdown";
 import { VoiceNote } from "@/components/VoiceNote";
 import { cn } from "@/lib/cn";
+import { DOWNSCALE, downscaleImage } from "@/lib/image/downscale";
 
 type ReplyRef = { id: string; role: "user" | "assistant"; preview: string };
 
@@ -54,28 +55,7 @@ type Msg = {
 
 const REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🔥", "🥰"];
 
-/** Downscale an image file to a small JPEG data URL (keeps the request small). */
-function fileToDataUrl(file: File, max = 1024): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, max / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("no canvas"));
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
-    };
-    img.onerror = () => reject(new Error("bad image"));
-    img.src = url;
-  });
-}
+
 type Props = {
   conversationId: string;
   conversationType: "main" | "side" | "incognito";
@@ -147,7 +127,7 @@ export function ChatWindow({
       Array.from(files)
         .filter((f) => f.type.startsWith("image/"))
         .slice(0, 4)
-        .map((f) => fileToDataUrl(f).catch(() => null)),
+        .map((f) => downscaleImage(f, DOWNSCALE.chatAttachment).catch(() => null)),
     );
     setImages((prev) => [...prev, ...picked.filter((x): x is string => !!x)].slice(0, 4));
     if (fileRef.current) fileRef.current.value = "";

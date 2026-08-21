@@ -35,6 +35,9 @@ type TimelineData = {
   mood: MoodPoint[];
   milestones: Milestone[];
   closeness: number;
+  archetype?: string;
+  gender?: string;
+  stage?: string | null;
   diary: { date: string; content: string; mood: string | null }[];
 };
 
@@ -56,12 +59,22 @@ export default function TimelinePage() {
       .catch(() => setPhotos([]));
   }, []);
 
+  // A pure secretary gets work framing; companion/progressive keep the bond framing.
+  const isWork = data?.archetype === "secretary";
+  const fromThem = data?.gender === "male" ? "منه" : "منها";
   const loc = locale === "en" ? "en-US" : "ar-EG";
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString(loc, { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <PageShell title={t("رحلتنا مع بعض", "Our journey")} icon={<Heart className="size-5" />}>
+    <PageShell
+      title={
+        isWork
+          ? t("شغلنا مع بعض", "Our work together")
+          : t("رحلتنا مع بعض", "Our journey")
+      }
+      icon={<Heart className="size-5" />}
+    >
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
@@ -81,14 +94,14 @@ export default function TimelinePage() {
             </div>
             <div className="text-4xl font-extrabold text-ink mb-1">
               {data.daysTogether}{" "}
-              <span className="text-lg font-bold text-accent">{t("يوم مع بعض", "days together")}</span>
+              <span className="text-lg font-bold text-accent">{isWork ? t("يوم شغل مع بعض", "days working together") : t("يوم مع بعض", "days together")}</span>
             </div>
             <div className="flex justify-center gap-5 mt-4 text-sm">
               <Stat n={data.totalMessages} label={t("رسالة", "messages")} />
               <Stat n={data.userMessages} label={t("منك", "from you")} />
-              <Stat n={data.assistantMessages} label={t("منها", "from her")} />
+              <Stat n={data.assistantMessages} label={t(fromThem, "from them")} />
             </div>
-            <Bond closeness={data.closeness} t={t} />
+            <Bond closeness={data.closeness} t={t} isWork={isWork} stage={data.stage ?? null} gender={data.gender} />
           </Card>
 
           {/* mood over time */}
@@ -98,7 +111,7 @@ export default function TimelinePage() {
           {photos.length > 0 && (
             <>
               <h2 className="text-sm font-semibold text-muted mt-6 mb-3 flex items-center gap-1.5">
-                <ImageIcon className="size-4 text-accent" /> {t("ألبومنا", "Our album")}
+                <ImageIcon className="size-4 text-accent" /> {isWork ? t("الصور", "Photos") : t("ألبومنا", "Our album")}
               </h2>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {photos.map((p) => (
@@ -119,7 +132,7 @@ export default function TimelinePage() {
           {data.diary?.length > 0 && (
             <>
               <h2 className="text-sm font-semibold text-muted mt-6 mb-3 flex items-center gap-1.5">
-                <NotebookPen className="size-4 text-accent" /> {t("يومياتها", "Her diary")}
+                <NotebookPen className="size-4 text-accent" /> {t(data.gender === "male" ? "يومياته" : "يومياتها", "Diary")}
               </h2>
               <div className="space-y-3">
                 {data.diary.map((d) => (
@@ -157,23 +170,55 @@ export default function TimelinePage() {
   );
 }
 
-function Bond({ closeness, t }: { closeness: number; t: (a: string, b: string) => string }) {
+function Bond({
+  closeness,
+  t,
+  isWork,
+  stage,
+  gender,
+}: {
+  closeness: number;
+  t: (a: string, b: string) => string;
+  isWork?: boolean;
+  stage?: string | null;
+  gender?: string;
+}) {
   const pct = Math.round(closeness * 100);
-  const stage =
-    closeness < 0.28
-      ? t("لسه بتتعرفوا", "Getting to know each other")
-      : closeness < 0.55
-        ? t("مرتاحين لبعض", "Comfortable together")
-        : closeness < 0.8
-          ? t("قريبين فعلاً", "Genuinely close")
-          : t("علاقة عميقة", "Deeply bonded");
+  const male = gender === "male";
+  // The progressive archetype has an EARNED stage — show that real name instead of
+  // a generic bond level. A secretary shows working rapport, never romance.
+  const stageName: Record<string, [string, string]> = {
+    secretary: [male ? "سكرتيرك" : "سكرتيرتك", "Your secretary"],
+    friend: [male ? "بقى صاحبك" : "بقت صاحبتك", "Your friend"],
+    close: [male ? "مقرّب ليك" : "مقرّبة ليك", "Close to you"],
+    companion: [male ? "رفيقك" : "رفيقتك", "Your companion"],
+    lover: [male ? "حبيبك" : "حبيبتك", "Your love"],
+  };
+  const label = stage
+    ? t(stageName[stage]?.[0] ?? "", stageName[stage]?.[1] ?? "")
+    : isWork
+      ? closeness < 0.4
+        ? t("لسه بتتعرفوا", "Getting to know each other")
+        : t("انسجام في الشغل", "Good working rapport")
+      : closeness < 0.28
+        ? t("لسه بتتعرفوا", "Getting to know each other")
+        : closeness < 0.55
+          ? t("مرتاحين لبعض", "Comfortable together")
+          : closeness < 0.8
+            ? t("قريبين فعلاً", "Genuinely close")
+            : t("علاقة عميقة", "Deeply bonded");
   return (
     <div className="mt-5 pt-4 border-t border-border">
       <div className="flex items-center justify-between text-xs mb-1.5">
         <span className="text-muted flex items-center gap-1">
-          <Heart className="size-3.5 text-accent" /> {t("قرب القلب", "Your bond")}
+          {isWork ? (
+            <Sparkles className="size-3.5 text-accent" />
+          ) : (
+            <Heart className="size-3.5 text-accent" />
+          )}
+          {isWork ? t("مستوى الانسجام", "Rapport") : t("قرب القلب", "Your bond")}
         </span>
-        <span className="font-semibold text-accent">{stage}</span>
+        <span className="font-semibold text-accent">{label}</span>
       </div>
       <div className="h-2 rounded-full bg-elevated overflow-hidden">
         <div

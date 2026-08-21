@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { AuthError, requireUser } from "@/lib/auth/guard";
+import { tenantForUser } from "@/lib/db/tenant";
+import { db } from "@/lib/db/client";
+import { assistants } from "@/lib/db/schema";
 import { getApiKeys, markCooling, pickKey } from "@/lib/llm/keys";
 import { LIMITS, rateLimit } from "@/lib/rate-limit";
 
@@ -9,9 +13,36 @@ export const maxDuration = 30;
 const STT_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 
 /**
+ * Transcription hint for the assistant's configured language — a fixed Egyptian
+ * prompt mis-transcribes every other language the assistant supports.
+ */
+function transcriptionPrompt(language: string): string {
+  const tail = " Transcribe exactly what was said, verbatim, with no commentary or quotes. Return empty text if nothing intelligible.";
+  switch (language) {
+    case "masri":
+      return "فرّغ الكلام في التسجيل الصوتي ده نصيًا بالعامية المصرية زي ما اتقال بالظبط، من غير أي تعليق أو علامات اقتباس. لو مفيش كلام واضح رجّع نص فاضي.";
+    case "levantine":
+      return "فرّغ الكلام بالتسجيل الصوتي هاد نصيًا باللهجة الشامية متل ما انقال بالظبط، بدون أي تعليق أو علامات اقتباس. إذا ما في كلام واضح رجّع نص فاضي.";
+    case "khaliji":
+      return "فرّغ الكلام في التسجيل الصوتي هذا نصيًا باللهجة الخليجية مثل ما انقال بالضبط، بدون أي تعليق أو علامات اقتباس. إذا ما فيه كلام واضح رجّع نص فاضي.";
+    case "maghrebi":
+      return "فرّغ الهضرة في هاد التسجيل الصوتي نصيًا بالدارجة المغاربية بحال ما تقالت بالضبط، بلا أي تعليق ولا علامات اقتباس. إلا ما كانش هضرة واضحة رجّع نص خاوي.";
+    case "msa":
+      return "فرّغ الكلام في هذا التسجيل الصوتي نصيًا بالعربية الفصحى كما قيل تمامًا، دون أي تعليق أو علامات اقتباس. إن لم يكن هناك كلام واضح فأعد نصًا فارغًا.";
+    case "fr":
+      return "Transcris exactement ce qui est dit dans cet enregistrement, en français." + tail;
+    case "auto":
+      return "Detect the spoken language/dialect and transcribe in it." + tail;
+    default:
+      return "Transcribe this recording in English." + tail;
+  }
+}
+
+/**
  * Speech-to-text for her voice-chat input. Transcribes the user's recorded audio
- * with Gemini (works server-side everywhere, incl. iOS PWA, and handles Egyptian
- * Arabic far better than the browser's SpeechRecognition). Returns { text }.
+ * with Gemini (works server-side everywhere, incl. iOS PWA). The prompt follows the
+ * assistant's configured language so non-Egyptian setups transcribe correctly.
+ * Returns { text }.
  */
 export async function POST(req: Request) {
   let user;
@@ -35,13 +66,25 @@ export async function POST(req: Request) {
   const keys = await getApiKeys();
   if (keys.length === 0) return NextResponse.json({ text: "" });
 
+  // Transcribe in the assistant's language, not a hardcoded one.
+  let language = "en";
+  try {
+    const ctx = await tenantForUser(user.id, user.role);
+    const [a] = await db
+      .select({ language: assistants.language })
+      .from(assistants)
+      .where(eq(assistants.id, ctx.assistantId))
+      .limit(1);
+    language = a?.language ?? "en";
+  } catch {
+    /* fall back to the default prompt */
+  }
+
   const payload = JSON.stringify({
     contents: [
       {
         parts: [
-          {
-            text: "فرّغ الكلام في التسجيل الصوتي ده نصيًا بالعامية المصرية زي ما اتقال بالظبط، من غير أي تعليق أو علامات اقتباس. لو مفيش كلام واضح رجّع نص فاضي.",
-          },
+          { text: transcriptionPrompt(language) },
           { inlineData: { mimeType, data: audio } },
         ],
       },

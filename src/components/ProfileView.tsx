@@ -11,6 +11,7 @@ import { Card, Chip } from "@/components/ui/Card";
 import { PhotoRepo } from "@/components/PhotoRepo";
 import { useToast } from "@/components/ui/Toast";
 import { useI18n } from "@/components/i18n";
+import { DOWNSCALE, downscaleImage } from "@/lib/image/downscale";
 import type { ProfileReport } from "@/lib/insights/profile";
 
 export function ProfileView({
@@ -39,35 +40,11 @@ export function ProfileView({
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
 
-  function pickAvatar(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const max = 512;
-          const scale = Math.min(1, max / Math.max(img.width, img.height));
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.round(img.width * scale);
-          canvas.height = Math.round(img.height * scale);
-          const cx = canvas.getContext("2d");
-          if (!cx) return reject(new Error("no canvas"));
-          cx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.85));
-        };
-        img.onerror = reject;
-        img.src = reader.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
   async function onAvatarFile(file: File | undefined) {
     if (!file) return;
     setUploadingAvatar(true);
     try {
-      const url = await pickAvatar(file);
+      const url = await downscaleImage(file, DOWNSCALE.avatar);
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

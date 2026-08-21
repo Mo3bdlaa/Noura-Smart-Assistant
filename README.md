@@ -145,10 +145,20 @@ can back a single deployment.
 
 ## Deployment
 
-Deploys to Vercel as a standard Next.js app. Set the environment variables above,
-apply the schema with `npm run db:push`, and confirm the cron entry in `vercel.json`.
-On the Vercel Hobby plan cron runs once daily; more frequent scheduling requires a
-paid plan.
+Deploys to Vercel as a standard Next.js app. Set the environment variables above and
+apply the schema with `npm run db:push`.
+
+**Scheduler resolution.** `vercel.json` registers two daily cron invocations, which is
+the Hobby plan ceiling. Time-of-day accuracy therefore depends on either a paid plan
+(sub-daily cron) or an external scheduler calling the tick endpoint:
+
+```
+GET https://<deployment>/api/cron/tick?key=$CRON_SECRET
+```
+
+Any interval-capable scheduler works (for example a 15-minute job). Without one,
+scheduled messages are delivered on the next cron invocation or the next time the user
+is active, and the message notes how late it is.
 
 ---
 
@@ -167,10 +177,23 @@ npm test             # vitest
 
 ---
 
+## Testing
+
+Unit tests cover the pure logic most prone to regression: control-tag sanitisation,
+streaming lead-tag parsing, relationship-stage mapping, persona core selection,
+image-prompt/seed determinism, voice defaults, and rate limiting.
+
+```bash
+npm test
+```
+
+CI (`.github/workflows/ci.yml`) runs `tsc --noEmit` and the test suite on every push.
+
+---
+
 ## Status
 
-Actively developed; interfaces and schema may change between commits. The test
-suite is not yet populated — `npm test` is wired up but there is no coverage today.
+Actively developed; interfaces and schema may change between commits.
 
 ## License
 

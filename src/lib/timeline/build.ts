@@ -1,9 +1,10 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { conversations, diaries, memories, messages } from "@/lib/db/schema";
+import { assistants, conversations, diaries, memories, messages } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant";
 import { readMood } from "@/lib/mood/state";
 import { moodHistory, type MoodPoint } from "./snapshot";
+import { progressiveStage } from "@/lib/persona/stages";
 
 export type Milestone = {
   /** ISO date of the milestone */
@@ -28,6 +29,11 @@ export type TimelineData = {
   milestones: Milestone[];
   /** Slow-moving relationship bond, 0..1. */
   closeness: number;
+  /** Persona archetype + gender so the page labels itself correctly. */
+  archetype: string;
+  gender: string;
+  /** Earned relationship stage (progressive archetype), else null. */
+  stage: string | null;
   /** Her recent nightly diary entries (newest first). */
   diary: { date: string; content: string; mood: string | null }[];
 };
@@ -127,6 +133,14 @@ export async function buildTimeline(ctx: TenantContext): Promise<TimelineData> {
   const mood = await moodHistory(ctx.assistantId);
   const { closeness } = await readMood(ctx.assistantId);
 
+  const [identity] = await db
+    .select({ archetype: assistants.archetype, gender: assistants.gender })
+    .from(assistants)
+    .where(eq(assistants.id, ctx.assistantId))
+    .limit(1);
+  const archetype = identity?.archetype ?? "companion";
+  const gender = identity?.gender ?? "female";
+
   const diaryRows = await db
     .select({ date: diaries.localDate, content: diaries.content, mood: diaries.mood })
     .from(diaries)
@@ -143,6 +157,9 @@ export async function buildTimeline(ctx: TenantContext): Promise<TimelineData> {
     mood,
     milestones,
     closeness,
+    archetype,
+    gender,
+    stage: archetype === "progressive" ? progressiveStage(closeness) : null,
     diary: diaryRows,
   };
 }
