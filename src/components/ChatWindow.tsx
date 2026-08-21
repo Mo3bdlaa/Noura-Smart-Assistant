@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -517,6 +517,25 @@ export function ChatWindow({
     setMessages((m) => m.map((x) => (x.id === msgId ? { ...x, taskDone: true } : x)));
     await fetch(`/api/tasks/${taskId}`, { method: "PATCH" }).catch(() => {});
   }
+  /**
+   * Stable handler identities for the memoized message bubbles.
+   *
+   * Without this, every streamed chunk creates fresh callbacks, React.memo always
+   * misses, and all messages re-render (each re-parsing its markdown) on every
+   * token — which froze long conversations on mobile. The ref keeps the latest
+   * closures while the passed-down functions never change identity.
+   */
+  const latest = useRef({ react, deleteMessage, startFork, toggleSelect, markTaskDone, regenerate });
+  latest.current = { react, deleteMessage, startFork, toggleSelect, markTaskDone, regenerate };
+  const stable = useRef({
+    react: (id: string, emoji: string) => latest.current.react(id, emoji),
+    deleteMessage: (id: string) => latest.current.deleteMessage(id),
+    startFork: (id: string) => latest.current.startFork(id),
+    toggleSelect: (id: string) => latest.current.toggleSelect(id),
+    markTaskDone: (id: string, taskId?: string) => latest.current.markTaskDone(id, taskId),
+    regenerate: () => latest.current.regenerate(),
+  }).current;
+
   function cancelFork() {
     setForkMode(false);
     setSelected(new Set());
@@ -620,18 +639,18 @@ export function ChatWindow({
                   assistantName={assistantName}
                   assistantPhoto={assistantPhoto}
                   assistantMood={assistantMood}
-                  streaming={streaming}
-                  onDelete={() => deleteMessage(m.id)}
-                  onReact={(e) => react(m.id, e)}
-                  onReply={() => setReplyingTo(m)}
-                  canRegenerate={i === lastUserIdx}
-                  onRegenerate={regenerate}
+                  isEmptyDraft={m.role !== "user" && m.content === "" && streaming}
+                  onDelete={stable.deleteMessage}
+                  onReact={stable.react}
+                  onReply={setReplyingTo}
+                  canRegenerate={i === lastUserIdx && !streaming}
+                  onRegenerate={stable.regenerate}
                   canFork={canFork}
-                  onFork={() => startFork(m.id)}
+                  onFork={stable.startFork}
                   forkMode={forkMode}
                   selected={selected.has(m.id)}
-                  onToggleSelect={() => toggleSelect(m.id)}
-                  onMarkTask={() => markTaskDone(m.id, m.taskId)}
+                  onToggleSelect={stable.toggleSelect}
+                  onMarkTask={stable.markTaskDone}
                   ephemeral={conversationType === "incognito"}
                 />
               ),
@@ -810,12 +829,12 @@ export function ChatWindow({
   );
 }
 
-function Bubble({
+const Bubble = memo(function Bubble({
   msg,
   assistantName,
   assistantPhoto,
   assistantMood,
-  streaming,
+  isEmptyDraft,
   onDelete,
   onReact,
   onReply,
@@ -833,18 +852,19 @@ function Bubble({
   assistantName: string;
   assistantPhoto?: string | null;
   assistantMood: "happy" | "calm" | "upset";
-  streaming: boolean;
-  onDelete: () => void;
-  onReact: (emoji: string) => void;
-  onReply?: () => void;
+  /** true only for the in-flight empty assistant draft (shows typing dots) */
+  isEmptyDraft: boolean;
+  onDelete: (id: string) => void;
+  onReact: (id: string, emoji: string) => void;
+  onReply?: (msg: Msg) => void;
   canRegenerate?: boolean;
   onRegenerate?: () => void;
   canFork?: boolean;
-  onFork?: () => void;
+  onFork?: (id: string) => void;
   forkMode?: boolean;
   selected?: boolean;
-  onToggleSelect?: () => void;
-  onMarkTask?: () => void;
+  onToggleSelect?: (id: string) => void;
+  onMarkTask?: (id: string, taskId?: string) => void;
   /** incognito: voice audio must not be cached server-side */
   ephemeral?: boolean;
 }) {
@@ -856,14 +876,13 @@ function Bubble({
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
-  const isEmptyDraft = !isUser && msg.content === "" && streaming;
   const isTemp = msg.id.startsWith("tmp-") || msg.id.startsWith("draft-");
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div
       id={`msg-${msg.id}`}
-      onClick={forkMode && !isTemp ? onToggleSelect : undefined}
+      onClick={forkMode && !isTemp ? () => onToggleSelect?.(msg.id) : undefined}
       className={cn(
         "group flex items-end gap-2 animate-slide-up scroll-mt-20",
         // RTL: user on the right (self-start), assistant on the left (self-end).
@@ -951,7 +970,7 @@ function Bubble({
 
         {msg.taskId && (
           <button
-            onClick={onMarkTask}
+            onClick={() => onMarkTask?.(msg.id, msg.taskId)}
             className={cn(
               "mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-theme",
               msg.taskDone
@@ -967,25 +986,25 @@ function Bubble({
 
       {!isEmptyDraft && !isTemp && !forkMode && (
         <div className="relative self-center flex items-center">
-          {canRegenerate && !streaming && onRegenerate && (
+          {canRegenerate && onRegenerate && (
             <IconButton size="sm" onClick={onRegenerate} aria-label="إعادة توليد" title="Regenerate">
               <RotateCcw className="size-3.5" />
             </IconButton>
           )}
           {canFork && onFork && (
-            <IconButton size="sm" subtle onClick={onFork} aria-label="نقل لمحادثة جانبية" title="Fork">
+            <IconButton size="sm" subtle onClick={() => onFork?.(msg.id)} aria-label="نقل لمحادثة جانبية" title="Fork">
               <GitBranch className="size-3.5" />
             </IconButton>
           )}
           {onReply && (
-            <IconButton size="sm" subtle onClick={onReply} aria-label="رد" title="Reply">
+            <IconButton size="sm" subtle onClick={() => onReply?.(msg)} aria-label="رد" title="Reply">
               <Reply className="size-3.5" />
             </IconButton>
           )}
           <IconButton size="sm" subtle onClick={() => setPickerOpen((o) => !o)} aria-label="تفاعل">
             <SmilePlus className="size-3.5" />
           </IconButton>
-          <IconButton size="sm" subtle onClick={onDelete} aria-label="حذف">
+          <IconButton size="sm" subtle onClick={() => onDelete(msg.id)} aria-label="حذف">
             <Trash2 className="size-3.5" />
           </IconButton>
           {pickerOpen && (
@@ -996,7 +1015,7 @@ function Bubble({
                   <button
                     key={e}
                     onClick={() => {
-                      onReact(e);
+                      onReact(msg.id, e);
                       setPickerOpen(false);
                     }}
                     className="text-lg leading-none hover:scale-125 transition-transform"
@@ -1011,7 +1030,7 @@ function Bubble({
       )}
     </div>
   );
-}
+});
 
 function TypingDots() {
   return (

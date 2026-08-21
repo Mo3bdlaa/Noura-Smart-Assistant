@@ -133,12 +133,30 @@ export async function recentHistory(conversationId: string, limit = 32): Promise
     .map((r) => ({ role: r.role as ChatTurn["role"], content: r.content }));
 }
 
-export async function listMessages(ctx: TenantContext, conversationId: string) {
-  return db
+/**
+ * The most recent slice of a conversation (oldest→newest within the slice).
+ *
+ * Long threads used to load in full — hundreds of messages rendered (and
+ * re-rendered) on every open, which is what made old chats crawl on mobile. The
+ * window is generous enough that scrolling back feels natural.
+ */
+export async function listMessages(ctx: TenantContext, conversationId: string, limit = 60) {
+  const rows = await db
     .select()
     .from(messages)
     .where(and(eq(messages.conversationId, conversationId), eq(messages.userId, ctx.userId)))
-    .orderBy(asc(messages.createdAt));
+    .orderBy(desc(messages.createdAt))
+    .limit(limit);
+  return rows.reverse();
+}
+
+/** Total messages in a conversation — lets the UI say how many are hidden. */
+export async function countMessages(ctx: TenantContext, conversationId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conversationId), eq(messages.userId, ctx.userId)));
+  return Number(row?.n ?? 0);
 }
 
 export async function saveMessage(opts: {
