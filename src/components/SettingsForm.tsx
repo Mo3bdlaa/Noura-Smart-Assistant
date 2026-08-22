@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useRef, useState } from "react";
 import { Cpu, Languages, LogOut, Lock, Moon, Palette, Settings, Smartphone, Sun, SunMoon, User, Volume2 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +16,12 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useI18n } from "@/components/i18n";
 import { cn } from "@/lib/cn";
+
+// Own chunk, fetched only after the gesture below — nothing about it ships in
+// the main bundle.
+const PrivateMode = dynamic(() => import("@/components/PrivateMode"), { ssr: false });
+
+const APP_BUILD = "v0.1.0 · build 2026.08";
 
 const TIMEZONES = [
   "Africa/Cairo",
@@ -209,6 +216,20 @@ export function SettingsForm({
       setPw({ currentPassword: "", newPassword: "" });
     } finally {
       setSavingPw(false);
+    }
+  }
+
+  // Hidden entry point: seven taps on the build line at the bottom of the page,
+  // each within a second of the last. Nothing in the UI hints that it is there.
+  const taps = useRef({ n: 0, at: 0 });
+  const [sheet, setSheet] = useState(false);
+  function tapBuild() {
+    const now = Date.now();
+    taps.current.n = now - taps.current.at < 1000 ? taps.current.n + 1 : 1;
+    taps.current.at = now;
+    if (taps.current.n >= 7) {
+      taps.current.n = 0;
+      setSheet(true);
     }
   }
 
@@ -594,6 +615,15 @@ export function SettingsForm({
         <Button variant="ghost" block onClick={logout} className="text-danger">
           <LogOut className="size-4" /> {t("تسجيل خروج", "Log out")}
         </Button>
+
+        <div
+          dir="ltr"
+          onClick={tapBuild}
+          className="pt-1 pb-2 text-center text-[11px] text-faint select-none cursor-default"
+        >
+          {APP_BUILD}
+        </div>
+        {sheet && <PrivateMode onClose={() => setSheet(false)} />}
       </div>
     </PageShell>
   );

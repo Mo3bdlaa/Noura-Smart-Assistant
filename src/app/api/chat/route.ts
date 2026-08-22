@@ -9,6 +9,7 @@ import { AuthError, requireTenant } from "@/lib/auth/guard";
 import { streamChat } from "@/lib/llm/chat";
 import { assembleSystem } from "@/lib/persona/assemble";
 import type { LangCode } from "@/lib/persona/languages";
+import { nsfwForRequest } from "@/lib/persona/unlock";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 import { readMood } from "@/lib/mood/state";
 import { timeContext } from "@/lib/time/awareness";
@@ -197,6 +198,8 @@ export async function POST(req: Request) {
     conversationType: conv.type,
     scenario: conv.scenario,
     locale: await getLocale(),
+    // null unless the toggle is on AND this browser carries the unlock cookie.
+    nsfw: await nsfwForRequest(ctx.userId, ctx.assistantId),
   });
 
   // Set by the stream when she sends a voice note → pre-generate its audio so the

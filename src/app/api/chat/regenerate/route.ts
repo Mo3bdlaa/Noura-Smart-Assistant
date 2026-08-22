@@ -7,6 +7,7 @@ import { AuthError, requireTenant } from "@/lib/auth/guard";
 import { streamChat } from "@/lib/llm/chat";
 import { assembleSystem } from "@/lib/persona/assemble";
 import { personaInput } from "@/lib/persona/context";
+import { nsfwForRequest } from "@/lib/persona/unlock";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 import { readMood } from "@/lib/mood/state";
 import { timeContext } from "@/lib/time/awareness";
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
       conversationType: conv.type,
       scenario: conv.scenario,
       locale,
+      nsfw: await nsfwForRequest(ctx.userId, ctx.assistantId),
     }),
   );
 
