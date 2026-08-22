@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #B05C81; text-decoration: none; }
+    a:hover { color: #8E4767; }
+  </style>
+</helmet>
+
+<div dir="rtl" style="width: 900px; min-height: 1080px; background: #FBF2F5; font-family: 'Readex Pro', 'Segoe UI', Tahoma, sans-serif; color: #32222B; padding: 38px; box-sizing: border-box; display: flex; flex-direction: column; gap: 34px;">
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="font-size: 26px; font-weight: 500; letter-spacing: -0.02em;">ورد — نظام التصميم</div>
+    <div style="font-size: 13px; font-weight: 300; color: #7A6470;">Readex Pro · وردي وبنفسجي · هالات ناعمة · زوايا كبيرة</div>
+  </div>
+
+  <!-- colours -->
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="font-size: 12px; font-weight: 300; color: #AE97A2;">الألوان — فاتح / غامق</div>
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 52px; border-radius: 14px; background: #FBF2F5; border: 1px solid #F0E2E8;"></div><div style="font-size: 11px; font-weight: 400;">bg</div><div style="font-size: 10px; font-weight: 300; color: #AE97A2; direction: ltr; text-align: right;">#FBF2F5 / #1E1420</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 52px; border-radius: 14px; background: #FFFFFF; border: 1px solid #F0E2E8;"></div><div style="font-size: 11px; font-weight: 400;">surface</div><div style="font-size: 10px; font-weight: 300; color: #AE97A2; direction: ltr; text-align: right;">#FFFFFF / #2C1F2E</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 52px; border-radius: 14px; background: #F4E7ED;"></div><div style="font-size: 11px; font-weight: 400;">line</div><div style="font-size: 10px; font-weight: 300; color: #AE97A2; direction: ltr; text-align: right;">#F0E2E8 / #45324A</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 52px; border-radius: 14px; background: #D97DA5;"></div><div style="font-size: 11px; font-weight: 400;">rose</div><div style="font-size: 10px; font-weight: 300; color: #AE97A2; direction: ltr; text-align: right;">#D97DA5 / #E298B7</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 52px; border-radius: 14px; background: #BA94D6;"></div><div style="font-size: 11px; font-weight: 400;">lilac</div><div style="font-size: 10px; font-weight: 300; color: #AE97A2; direction: ltr; text-align: right;">#BA94D6 / #C9AEF2</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 52px; border-radius: 14px; background: #86B79E;"></div><div style="font-size: 11px; font-weight: 400;">done</div><div style="font-size: 10px; font-weight: 300; color: #AE97A2; direction: ltr; text-align: right;">#6FA890 / #86B79E</div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 38px; border-radius: 12px; background: #32222B;"></div><div style="font-size: 11px; font-weight: 400;">ink</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 38px; border-radius: 12px; background: #7A6470;"></div><div style="font-size: 11px; font-weight: 400;">muted</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 38px; border-radius: 12px; background: #AE97A2;"></div><div style="font-size: 11px; font-weight: 400;">faint</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 38px; border-radius: 12px; background: #C05F5F;"></div><div style="font-size: 11px; font-weight: 400;">danger</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 38px; border-radius: 12px; background: linear-gradient(150deg, #E298B7, #BA94D6);"></div><div style="font-size: 11px; font-weight: 400;">التدرّج الأساسي</div></div>
+      <div style="display: flex; flex-direction: column; gap: 7px;"><div style="height: 38px; border-radius: 12px; background: radial-gradient(circle at 50% 50%, rgba(226,152,183,0.5), rgba(226,152,183,0));"></div><div style="font-size: 11px; font-weight: 400;">الهالة</div></div>
+    </div>
+  </div>
+
+  <!-- type -->
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="font-size: 12px; font-weight: 300; color: #AE97A2;">الخطوط — Readex Pro</div>
+    <div style="background: #FFFFFF; border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 3px 16px rgba(50,34,43,0.05);">
+      <div style="display: flex; align-items: baseline; gap: 22px;"><span style="width: 120px; font-size: 11px; font-weight: 300; color: #C0AAB5; flex-shrink: 0;">عنوان ٢٤/٥٠٠</span><span style="font-size: 24px; font-weight: 500; letter-spacing: -0.02em;">رحلتنا</span></div>
+      <div style="display: flex; align-items: baseline; gap: 22px;"><span style="width: 120px; font-size: 11px; font-weight: 300; color: #C0AAB5; flex-shrink: 0;">عنوان فرعي ١٧/٥٠٠</span><span style="font-size: 17px; font-weight: 500;">اللي فاكراه عنك</span></div>
+      <div style="display: flex; align-items: baseline; gap: 22px;"><span style="width: 120px; font-size: 11px; font-weight: 300; color: #C0AAB5; flex-shrink: 0;">أساسي ١٥/٣٠٠/١٫٩</span><span style="font-size: 15px; font-weight: 300; line-height: 1.9; max-width: 520px;">صباح النور. قولتلي امبارح إنك هتبدأ بدري النهاردة، فحبيت أفكّرك — خد وقتك بس.</span></div>
+      <div style="display: flex; align-items: baseline; gap: 22px;"><span style="width: 120px; font-size: 11px; font-weight: 300; color: #C0AAB5; flex-shrink: 0;">ثانوي ١٣/٣٠٠</span><span style="font-size: 13px; font-weight: 300; line-height: 1.75; color: #7A6470; max-width: 520px;">بتبدأ سكرتيرة، والعلاقة بتكبر حسب تعاملك معاها.</span></div>
+      <div style="display: flex; align-items: baseline; gap: 22px;"><span style="width: 120px; font-size: 11px; font-weight: 300; color: #C0AAB5; flex-shrink: 0;">صغير ١١٫٥</span><span style="font-size: 11.5px; font-weight: 300; color: #AE97A2;">٩:٠٠ ص · يوميًا</span></div>
+    </div>
+  </div>
+
+  <!-- components -->
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="font-size: 12px; font-weight: 300; color: #AE97A2;">المكوّنات</div>
+
+    <div style="background: #FFFFFF; border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 3px 16px rgba(50,34,43,0.05);">
+
+      <div style="display: flex; align-items: center; gap: 11px; flex-wrap: wrap;">
+        <button style="height: 48px; padding: 0 26px; border-radius: 16px; background: linear-gradient(150deg, #E298B7, #BA94D6); border: none; font-family: inherit; font-size: 14.5px; font-weight: 400; color: #FFFFFF; cursor: pointer; box-shadow: 0 5px 18px rgba(226,152,183,0.32);">أساسي</button>
+        <button style="height: 48px; padding: 0 26px; border-radius: 16px; background: #FAF3F6; border: none; font-family: inherit; font-size: 14.5px; font-weight: 300; color: #32222B; cursor: pointer;">ثانوي</button>
+        <button style="height: 48px; padding: 0 26px; border-radius: 16px; background: transparent; border: none; font-family: inherit; font-size: 14.5px; font-weight: 300; color: #7A6470; cursor: pointer;">شفاف</button>
+        <button style="height: 48px; padding: 0 26px; border-radius: 16px; background: rgba(192,95,95,0.10); border: none; font-family: inherit; font-size: 14.5px; font-weight: 300; color: #C05F5F; cursor: pointer;">حذف</button>
+        <button style="width: 48px; height: 48px; border-radius: 16px; background: #FAF3F6; border: none; display: flex; align-items: center; justify-content: center; color: #7A6470; cursor: pointer; padding: 0;">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; width: 250px; height: 48px; background: #FAF3F6; border-radius: 16px; padding: 0 18px; font-size: 14px; font-weight: 300; color: #B7A3AC;">حقل إدخال</div>
+        <div style="display: flex; align-items: center; width: 250px; height: 48px; background: #FFFFFF; border: 1.5px solid #E298B7; border-radius: 16px; padding: 0 18px; font-size: 14px; font-weight: 300;">حقل نشط</div>
+        <span style="font-size: 12px; font-weight: 400; color: #FFFFFF; background: linear-gradient(150deg, #E298B7, #C77FB8); border-radius: 999px; padding: 7px 15px;">مختار</span>
+        <span style="font-size: 12px; font-weight: 300; color: #7A6470; background: #FAF3F6; border-radius: 999px; padding: 7px 15px;">عادي</span>
+        <span style="font-size: 12px; font-weight: 300; color: #6FA890; background: rgba(134,183,158,0.16); border-radius: 999px; padding: 7px 15px;">اتعمل</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 22px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="position: relative; width: 26px; height: 26px;"><div style="position: absolute; inset: -4px; border-radius: 50%; background: radial-gradient(circle, rgba(226,152,183,0.4), rgba(226,152,183,0) 72%);"></div><div style="position: relative; width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(155deg,#E298B7,#BA94D6); display: flex; align-items: center; justify-content: center; font-size: 11px; color: #FFF;">ن</div></div>
+          <div style="position: relative; width: 44px; height: 44px;"><div style="position: absolute; inset: -6px; border-radius: 50%; background: radial-gradient(circle, rgba(226,152,183,0.4), rgba(226,152,183,0) 72%);"></div><div style="position: relative; width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(155deg,#E298B7,#BA94D6); display: flex; align-items: center; justify-content: center; font-size: 17px; color: #FFF;">ن</div></div>
+          <div style="position: relative; width: 76px; height: 76px;"><div style="position: absolute; inset: -9px; border-radius: 50%; background: radial-gradient(circle, rgba(226,152,183,0.4), rgba(226,152,183,0) 72%);"></div><div style="position: relative; width: 76px; height: 76px; border-radius: 50%; background: linear-gradient(155deg,#E298B7,#BA94D6); display: flex; align-items: center; justify-content: center; font-size: 30px; color: #FFF;">ن</div></div>
+          <span style="font-size: 11px; font-weight: 300; color: #AE97A2; max-width: 90px; line-height: 1.6;">الهالة بتحلّ محل نقطة «متصل»</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; padding: 15px 18px; background: #FAF3F6; border-radius: 16px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FA890" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          <span style="font-size: 13.5px; font-weight: 300;">اتحفظ</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px; background: rgba(226,152,183,0.09); border-radius: 20px;">
+        <div style="width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle, rgba(226,152,183,0.35), rgba(226,152,183,0.08)); display: flex; align-items: center; justify-content: center;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D97DA5" stroke-width="1.5" stroke-linecap="round"><path d="M12 4a4 4 0 0 0-4 4 3 3 0 0 0-1 5.8A3.5 3.5 0 0 0 10 20h4a3.5 3.5 0 0 0 3-6.2A3 3 0 0 0 16 8a4 4 0 0 0-4-4zM12 4v16"/></svg>
+        </div>
+        <div style="font-size: 15px; font-weight: 400;">لسه مفيش ذكريات</div>
+        <div style="font-size: 12.5px; font-weight: 300; color: #7A6470;">كل ما تتكلموا أكتر، هتفتكر أكتر 💗</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 32px; font-size: 11.5px; font-weight: 300; color: #AE97A2;">
+    <span>زوايا: ١٦ أزرار وحقول · ٢٠–٢٦ أسطح · ٢٦/٩ فقاعات</span>
+    <span>مسافات: ٤ ٨ ١٢ ١٨ ٢٢ ٢٦ ٣٤</span>
+    <span>أقل مساحة لمس: ٤٤</span>
+    <span>ظل: 0 3px 16px rgba(50,34,43,.05)</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
