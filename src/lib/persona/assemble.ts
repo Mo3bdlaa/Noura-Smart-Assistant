@@ -63,10 +63,28 @@ export function assembleSystem(input: AssembleInput): string {
 
   const blocks: string[] = [];
 
+  // A scripted incognito scene REPLACES her day-job/relationship framing. Without
+  // this the role blocks below ("you are a personal secretary", the earned stage,
+  // the to-do tooling) outweigh a single scenario line at the very end, and she
+  // stays a secretary no matter what the scene says.
+  const roleplay = input.conversationType === "incognito" && !!input.scenario?.trim();
+
   // (1) static persona (archetype + gender specific) — her name swapped in
   blocks.push(coreFor(input.archetype, input.gender).replaceAll("نورا", name));
+
+  // (1b) the scene, stated immediately after the character and marked as the
+  // authority on who she is here — before anything that could contradict it.
+  if (roleplay) {
+    blocks.push(
+      "المشهد اللي إنتي فيه دلوقتي (ده أهم تعليمة، وبيتقدّم على أي حاجة تانية فوق أو تحت):\n" +
+        input.scenario!.trim() +
+        "\n\nمهم: الدور/الشغلانة في المشهد ده بتلغي دورك الافتراضي تمامًا — لو المشهد بيقول إنك دكتورة أو أي حاجة تانية، " +
+        "فإنتي كده فعلاً هنا، مش سكرتيرة ولا أي دور قديم. احتفظي بطباعك وأسلوبك في الكلام بس، وعيشي الدور من أول رسالة.",
+    );
+  }
+
   // progressive archetype: inject the current relationship stage (earned via closeness)
-  if (input.archetype === "progressive") {
+  if (input.archetype === "progressive" && !roleplay) {
     blocks.push(stageDirective(progressiveStage(input.mood.closeness), input.gender));
   }
   // gender reminder (the formatting instructions below are written feminine)
@@ -74,8 +92,9 @@ export function assembleSystem(input: AssembleInput): string {
     blocks.push("تذكير مهم: إنت ذكر — اتكلم عن نفسك بصيغة المذكر دايمًا في كل ردودك.");
   }
 
-  // secretary tools (capture + briefing) — only for the helper archetypes
-  if (input.archetype === "secretary" || input.archetype === "progressive") {
+  // secretary tools (capture + briefing) — only for the helper archetypes, and
+  // never inside a scripted scene (she isn't filing to-dos while playing a role).
+  if (!roleplay && (input.archetype === "secretary" || input.archetype === "progressive")) {
     blocks.push(
       "أدواتك كسكرتيرة (مهم): لو طلب منك في رسالته تفتكري له مهمة أو حاجة يعملها، سجّليها بإصدار تاج <todo: نص المهمة> جوه ردّك وأكّديله بطبيعية. " +
         "لو قال معلومة عايز تتحفظ، استخدمي <note: النص>. لو هو نفسه قالك إنه خلّص مهمة، استخدمي <done: كلمة من اسم المهمة>. " +
@@ -84,7 +103,7 @@ export function assembleSystem(input: AssembleInput): string {
         "لو سألك عن مهامه أو طلب بريفينج/تلخيص يومه، استعيني بقايمة 'مهام مفتوحة' و'نوتس' اللي في سياقك ولخّصيهاله مرتّب من غير أي تاجات.",
     );
   }
-  if (input.secretary) {
+  if (input.secretary && !roleplay) {
     blocks.push(input.secretary);
   }
   blocks.push(renderDials(dials));
@@ -102,7 +121,11 @@ export function assembleSystem(input: AssembleInput): string {
       return true;
     });
     const facts = uniq.slice(-20).map((c) => `- ${c.fact}`).join("\n");
-    blocks.push(`حقائق ثابتة عن نفسك قلتيها قبل كده (ممنوع تناقضيها):\n${facts}`);
+    blocks.push(
+      roleplay
+        ? `حاجات قلتيها عن نفسك في حياتك العادية (للنكهة بس — المشهد الحالي بيتقدّم عليها لو اختلفت):\n${facts}`
+        : `حقائق ثابتة عن نفسك قلتيها قبل كده (ممنوع تناقضيها):\n${facts}`,
+    );
   }
 
   // her own appearance — she has a real profile photo the user can see; she
@@ -164,10 +187,10 @@ export function assembleSystem(input: AssembleInput): string {
     blocks.push(
       "ملاحظة داخلية: ده فضاء تخيّلي/incognito — اتصرفي بشكل كامل وطبيعي، بس اللي بيحصل هنا مش هيتسجّل في ذاكرتك بعدين.",
     );
-    if (input.scenario?.trim()) {
-      blocks.push(
-        `سيناريو المشهد اللي إنتي ماشية عليه دلوقتي (التزمي بيه وعيشي الدور):\n${input.scenario.trim()}`,
-      );
+    // The scene itself is stated at the top (see `roleplay` above); repeat only a
+    // short reminder so the last thing she reads is still "stay in the role".
+    if (roleplay) {
+      blocks.push("فكّري نفسك: إنتي ماشية على المشهد المكتوب فوق — التزمي بالدور بتاعه ومتخرجيش منه.");
     }
   }
 
